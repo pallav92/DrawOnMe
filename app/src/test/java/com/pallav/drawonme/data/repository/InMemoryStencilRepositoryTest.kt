@@ -17,15 +17,19 @@ class InMemoryStencilRepositoryTest {
     }
 
     @Test
-    fun getStencils_returnsPredefinedCartoonCharacters() {
+    fun getStencils_returnsPredefinedGeometricTemplates() {
         val stencils = repository.getStencils()
 
-        assertEquals(4, stencils.size)
+        assertEquals(8, stencils.size)
         val ids = stencils.map { it.id }.toSet()
-        assertTrue(ids.contains("playful_mouse"))
-        assertTrue(ids.contains("cheerful_duck"))
-        assertTrue(ids.contains("jungle_elephant"))
-        assertTrue(ids.contains("happy_lion"))
+        assertTrue(ids.contains("cozy_house"))
+        assertTrue(ids.contains("zooming_car"))
+        assertTrue(ids.contains("space_rocket"))
+        assertTrue(ids.contains("happy_sailboat"))
+        assertTrue(ids.contains("smiling_sun"))
+        assertTrue(ids.contains("cute_teddy"))
+        assertTrue(ids.contains("playful_kitty"))
+        assertTrue(ids.contains("cartoon_mouse"))
     }
 
     @Test
@@ -54,30 +58,50 @@ class InMemoryStencilRepositoryTest {
 
     @Test
     fun getStencilById_withKnownId_returnsStencil() {
-        val mouse = repository.getStencilById("playful_mouse")
+        val house = repository.getStencilById("cozy_house")
+        assertNotNull(house)
+        assertEquals("Cozy House", house?.title)
+        assertEquals("🏠", house?.iconEmoji)
+
+        val car = repository.getStencilById("zooming_car")
+        assertNotNull(car)
+        assertEquals("Zooming Car", car?.title)
+        assertEquals("🚗", car?.iconEmoji)
+
+        val rocket = repository.getStencilById("space_rocket")
+        assertNotNull(rocket)
+        assertEquals("Space Rocket", rocket?.title)
+        assertEquals("🚀", rocket?.iconEmoji)
+
+        val sailboat = repository.getStencilById("happy_sailboat")
+        assertNotNull(sailboat)
+        assertEquals("Happy Sailboat", sailboat?.title)
+        assertEquals("⛵", sailboat?.iconEmoji)
+
+        val sun = repository.getStencilById("smiling_sun")
+        assertNotNull(sun)
+        assertEquals("Smiling Sun", sun?.title)
+        assertEquals("☀️", sun?.iconEmoji)
+
+        val teddy = repository.getStencilById("cute_teddy")
+        assertNotNull(teddy)
+        assertEquals("Cute Teddy Bear", teddy?.title)
+        assertEquals("🧸", teddy?.iconEmoji)
+
+        val kitty = repository.getStencilById("playful_kitty")
+        assertNotNull(kitty)
+        assertEquals("Playful Kitty", kitty?.title)
+        assertEquals("🐱", kitty?.iconEmoji)
+
+        val mouse = repository.getStencilById("cartoon_mouse")
         assertNotNull(mouse)
         assertEquals("Playful Mouse", mouse?.title)
         assertEquals("🐭", mouse?.iconEmoji)
-
-        val duck = repository.getStencilById("cheerful_duck")
-        assertNotNull(duck)
-        assertEquals("Cheerful Duck", duck?.title)
-        assertEquals("🦆", duck?.iconEmoji)
-
-        val elephant = repository.getStencilById("jungle_elephant")
-        assertNotNull(elephant)
-        assertEquals("Jungle Elephant", elephant?.title)
-        assertEquals("🐘", elephant?.iconEmoji)
-
-        val lion = repository.getStencilById("happy_lion")
-        assertNotNull(lion)
-        assertEquals("Happy Lion", lion?.title)
-        assertEquals("🦁", lion?.iconEmoji)
     }
 
     @Test
     fun getStencilById_withUnknownId_returnsNull() {
-        val unknown = repository.getStencilById("non_existent_character")
+        val unknown = repository.getStencilById("non_existent_template")
         assertNull(unknown)
     }
 }

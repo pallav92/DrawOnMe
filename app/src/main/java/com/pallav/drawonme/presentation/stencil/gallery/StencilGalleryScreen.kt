@@ -38,6 +38,10 @@ import androidx.compose.ui.unit.sp
 import com.pallav.drawonme.data.repository.InMemoryStencilRepository
 import com.pallav.drawonme.domain.model.Stencil
 import com.pallav.drawonme.domain.repository.StencilRepository
+import androidx.compose.material3.FilterChip
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 
 /**
  * Screen displaying the gallery of cartoon character stencils for children to select.
@@ -56,6 +60,12 @@ fun StencilGalleryScreen(
     repository: StencilRepository = remember { InMemoryStencilRepository() }
 ) {
     val stencils = remember { repository.getStencils() }
+    var selectedCategory by remember { mutableStateOf("All") }
+    val categories = listOf("All", "Vehicles & Things", "Animals & Friends")
+
+    val filteredStencils = remember(selectedCategory, stencils) {
+        if (selectedCategory == "All") stencils else stencils.filter { it.category == selectedCategory }
+    }
 
     Scaffold(
         modifier = modifier.fillMaxSize(),
@@ -63,7 +73,7 @@ fun StencilGalleryScreen(
             CenterAlignedTopAppBar(
                 title = {
                     Text(
-                        text = "Choose a Character",
+                        text = "Choose a Stencil",
                         style = MaterialTheme.typography.titleLarge.copy(
                             fontWeight = FontWeight.Bold
                         )
@@ -83,26 +93,49 @@ fun StencilGalleryScreen(
             )
         }
     ) { innerPadding ->
-        LazyVerticalGrid(
-            columns = GridCells.Adaptive(minSize = 160.dp),
-            contentPadding = PaddingValues(
-                start = 16.dp,
-                end = 16.dp,
-                top = innerPadding.calculateTopPadding() + 8.dp,
-                bottom = innerPadding.calculateBottomPadding() + 16.dp
-            ),
-            horizontalArrangement = Arrangement.spacedBy(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
-            modifier = Modifier.fillMaxSize()
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding)
         ) {
-            items(
-                items = stencils,
-                key = { it.id }
-            ) { stencil ->
-                StencilCard(
-                    stencil = stencil,
-                    onClick = { onSelectStencil(stencil.id) }
-                )
+            // Category Filter Row
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 6.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                for (cat in categories) {
+                    FilterChip(
+                        selected = selectedCategory == cat,
+                        onClick = { selectedCategory = cat },
+                        label = { Text(cat) }
+                    )
+                }
+            }
+
+            LazyVerticalGrid(
+                columns = GridCells.Adaptive(minSize = 160.dp),
+                contentPadding = PaddingValues(
+                    start = 16.dp,
+                    end = 16.dp,
+                    top = 8.dp,
+                    bottom = 24.dp
+                ),
+                horizontalArrangement = Arrangement.spacedBy(16.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp),
+                modifier = Modifier.fillMaxSize()
+            ) {
+                items(
+                    items = filteredStencils,
+                    key = { it.id }
+                ) { stencil ->
+                    StencilCard(
+                        stencil = stencil,
+                        onClick = { onSelectStencil(stencil.id) }
+                    )
+                }
             }
         }
     }

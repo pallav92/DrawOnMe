@@ -67,7 +67,7 @@ fun StencilDrawingScreen(
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
     var isGuideVisible by remember { mutableStateOf(true) }
-    val guideOpacity by remember { mutableFloatStateOf(0.50f) }
+    val guideOpacity by remember { mutableFloatStateOf(0.65f) }
 
     Box(
         modifier = modifier.fillMaxSize()
@@ -83,7 +83,7 @@ fun StencilDrawingScreen(
                         drawStencilGuide(
                             stencil = stencil,
                             opacity = guideOpacity,
-                            guideColor = Color(0xFF6750A4)
+                            guideColor = Color(0xFF4A148C)
                         )
                     }
                 }
@@ -175,13 +175,13 @@ private fun DrawScope.drawStencilGuide(
 ) {
     val width = size.width
     val height = size.height
-    // Keep 1:1 aspect ratio centered on screen, scaled to 80% to avoid toolbar overlap
-    val scale = minOf(width, height) * 0.80f
+    // Keep 1:1 aspect ratio centered on screen, scaled to 92% to boldly fill the canvas
+    val scale = minOf(width, height) * 0.92f
     val offsetX = (width - scale) / 2f
-    val offsetY = (height - scale) / 2f - 30f
+    val offsetY = (height - scale) / 2f - 40f
 
     val strokeColor = guideColor.copy(alpha = opacity)
-    val dashEffect = PathEffect.dashPathEffect(floatArrayOf(16f, 14f), 0f)
+    val dashEffect = PathEffect.dashPathEffect(floatArrayOf(14f, 10f), 0f)
 
     for (stencilPath in stencil.paths) {
         if (stencilPath.points.isEmpty()) continue
@@ -203,7 +203,7 @@ private fun DrawScope.drawStencilGuide(
             path = path,
             color = strokeColor,
             style = androidx.compose.ui.graphics.drawscope.Stroke(
-                width = 3.dp.toPx(),
+                width = 3.5.dp.toPx(),
                 cap = StrokeCap.Round,
                 join = StrokeJoin.Round,
                 pathEffect = dashEffect
