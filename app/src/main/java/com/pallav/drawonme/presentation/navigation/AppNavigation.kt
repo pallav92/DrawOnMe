@@ -5,6 +5,11 @@ package com.pallav.drawonme.presentation.navigation
  */
 sealed interface AppScreen {
     /**
+     * Whimsical animated intro splash screen.
+     */
+    data object Splash : AppScreen
+
+    /**
      * Home / mode selection landing screen.
      */
     data object Onboarding : AppScreen

@@ -1,0 +1,108 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="120dp"
+    android:height="120dp"
+    android:viewportWidth="120"
+    android:viewportHeight="120">
+
+    <!-- Soft drop shadow under palette -->
+    <path
+        android:fillColor="#25000000"
+        android:pathData="M60,28 C40,28 25,41 25,61 C25,81 40,95 60,95 C68,95 75,90 78,85 C80,80 85,80 89,82 C93,84 97,81 97,77 C97,48 80,28 60,28 Z" />
+
+    <!-- Wooden artist palette body -->
+    <path
+        android:fillColor="#FFA726"
+        android:strokeColor="#E65100"
+        android:strokeWidth="2.2"
+        android:pathData="M58,26 C38,26 23,39 23,59 C23,79 38,93 58,93 C66,93 73,88 76,83 C78,78 83,78 87,80 C91,82 95,79 95,75 C95,46 78,26 58,26 Z" />
+
+    <!-- Palette inner wood grain highlight -->
+    <path
+        android:fillColor="#FFB74D"
+        android:pathData="M58,28 C40,28 26,40 26,58 C26,76 40,89 58,89 C65,89 71,85 74,80 C77,75 83,75 87,77 C91,79 93,76 93,73 C93,47 77,28 58,28 Z" />
+
+    <!-- Palette thumb hole (theme-adaptive) -->
+    <path
+        android:fillColor="@color/splash_background"
+        android:strokeColor="#E65100"
+        android:strokeWidth="1.6"
+        android:pathData="M76,66 A6.5,8 0 1,1 76,66.01 Z" />
+
+    <!-- 5 Vibrant Paint Dollops with glossy highlights -->
+    <!-- Red Dollop -->
+    <path
+        android:fillColor="#FF1744"
+        android:pathData="M38,42 A5,5 0 1,1 38,42.01 Z" />
+    <path
+        android:fillColor="#FFFF8A80"
+        android:pathData="M37,40.5 A1.4,1.4 0 1,1 37,40.51 Z" />
+
+    <!-- Yellow Dollop -->
+    <path
+        android:fillColor="#FFEA00"
+        android:pathData="M54,34 A5,5 0 1,1 54,34.01 Z" />
+    <path
+        android:fillColor="#FFFFFFFE"
+        android:pathData="M53,32.5 A1.4,1.4 0 1,1 53,32.51 Z" />
+
+    <!-- Blue Dollop -->
+    <path
+        android:fillColor="#00E5FF"
+        android:pathData="M71,39 A5,5 0 1,1 71,39.01 Z" />
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M70,37.5 A1.4,1.4 0 1,1 70,37.51 Z" />
+
+    <!-- Green Dollop -->
+    <path
+        android:fillColor="#00E676"
+        android:pathData="M34,59 A5,5 0 1,1 34,59.01 Z" />
+    <path
+        android:fillColor="#FFB9F6CA"
+        android:pathData="M33,57.5 A1.4,1.4 0 1,1 33,57.51 Z" />
+
+    <!-- Magenta Dollop -->
+    <path
+        android:fillColor="#F50057"
+        android:pathData="M40,75 A5,5 0 1,1 40,75.01 Z" />
+    <path
+        android:fillColor="#FFFF80AB"
+        android:pathData="M39,73.5 A1.4,1.4 0 1,1 39,73.51 Z" />
+
+    <!-- Paintbrush crossing diagonally -->
+    <!-- Handle -->
+    <path
+        android:fillColor="#5D4037"
+        android:strokeColor="#3E2723"
+        android:strokeWidth="1.0"
+        android:pathData="M85,25 L91,31 L62,65 L56,59 Z" />
+
+    <!-- Metallic Ferrule -->
+    <path
+        android:fillColor="#ECEFF1"
+        android:strokeColor="#78909C"
+        android:strokeWidth="1.0"
+        android:pathData="M56,59 L62,65 L54,73 L48,67 Z" />
+
+    <!-- Bristles & Wet Color Tip -->
+    <path
+        android:fillColor="#FF6D00"
+        android:strokeColor="#E65100"
+        android:strokeWidth="1.0"
+        android:pathData="M48,67 L54,73 C50,79 45,82 41,82 C41,78 45,73 48,67 Z" />
+    <path
+        android:fillColor="#FFD600"
+        android:pathData="M43,79 C42.5,80 41.5,81 41,82 C41,80.5 42,79.5 43,79 Z" />
+
+    <!-- Golden Sparkle Stars -->
+    <!-- Large Top-Right Star -->
+    <path
+        android:fillColor="#FFD700"
+        android:pathData="M93,37 L95,27 L97,37 L107,39 L97,41 L95,51 L93,41 L83,39 Z" />
+    <!-- Small Bottom-Left Star -->
+    <path
+        android:fillColor="#FFE082"
+        android:pathData="M25,81 L26,75 L27,81 L33,82 L27,83 L26,89 L25,83 L19,82 Z" />
+
+</vector>

@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
 
-    <style name="Theme.DrawOnMe" parent="android:Theme.Material.Light.NoActionBar" />
+    <style name="Theme.DrawOnMe" parent="android:Theme.Material.NoActionBar" />
 
-    <!-- Splash screen theme for Android 12+ and backported down to API 24 -->
+    <!-- Splash screen theme for Android 12+ and backported down to API 24 (Night mode) -->
     <style name="Theme.DrawOnMe.Starting" parent="Theme.SplashScreen">
         <item name="windowSplashScreenBackground">@color/splash_background</item>
         <item name="windowSplashScreenAnimatedIcon">@drawable/ic_splash_logo</item>
