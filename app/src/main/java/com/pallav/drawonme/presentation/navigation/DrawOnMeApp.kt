@@ -15,6 +15,7 @@ import com.pallav.drawonme.domain.repository.ArtworkRepository
 import com.pallav.drawonme.presentation.fridge.FridgeGalleryScreen
 import com.pallav.drawonme.presentation.onboarding.OnboardingScreen
 import com.pallav.drawonme.presentation.scribble.ScribbleScreen
+import com.pallav.drawonme.presentation.splash.SplashScreen
 import com.pallav.drawonme.presentation.stencil.drawing.StencilDrawingScreen
 import com.pallav.drawonme.presentation.stencil.gallery.StencilGalleryScreen
 import java.io.File
@@ -33,10 +34,10 @@ fun DrawOnMeApp(
         artworkRepository ?: FileArtworkRepository(File(context.filesDir, "saved_artworks"))
     }
 
-    var backStack by remember { mutableStateOf(listOf<AppScreen>(AppScreen.Onboarding)) }
+    var backStack by remember { mutableStateOf(listOf<AppScreen>(AppScreen.Splash)) }
     val currentScreen = backStack.last()
 
-    val canGoBack = backStack.size > 1
+    val canGoBack = backStack.size > 1 && currentScreen !is AppScreen.Splash
     val popBack: () -> Unit = {
         if (canGoBack) {
             backStack = backStack.dropLast(1)
@@ -51,6 +52,14 @@ fun DrawOnMeApp(
         modifier = modifier.fillMaxSize()
     ) {
         when (currentScreen) {
+            is AppScreen.Splash -> {
+                SplashScreen(
+                    onSplashFinished = {
+                        backStack = listOf(AppScreen.Onboarding)
+                    }
+                )
+            }
+
             is AppScreen.Onboarding -> {
                 OnboardingScreen(
                     onSelectFreeScribble = {
