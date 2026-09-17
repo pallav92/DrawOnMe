@@ -22,6 +22,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Draw
+import androidx.compose.material.icons.filled.PhotoLibrary
+import androidx.compose.material.icons.filled.Shield
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
@@ -32,22 +34,27 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.pallav.drawonme.presentation.onboarding.components.RainbowSplashPad
 
 /**
- * Welcoming onboarding / mode-selection screen for children and creators.
+ * Child-first onboarding screen featuring an interactive rainbow splash pad,
+ * pre-reader visual pathways, and parent safety assurance.
  *
- * @param onSelectFreeScribble Callback when user selects the freehand notepad mode.
+ * @param onSelectFreeScribble Callback when user selects the freehand notepad.
  * @param onSelectStencils Callback when user selects the cartoon stencil studio.
+ * @param onSelectFridge Callback when user selects the virtual fridge gallery.
  * @param modifier Optional modifier applied to the screen root.
  */
 @Composable
 fun OnboardingScreen(
     onSelectFreeScribble: () -> Unit,
     onSelectStencils: () -> Unit,
+    onSelectFridge: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Surface(
@@ -59,69 +66,126 @@ fun OnboardingScreen(
                 .fillMaxSize()
                 .statusBarsPadding()
                 .navigationBarsPadding()
-                .padding(horizontal = 24.dp)
+                .padding(horizontal = 20.dp)
                 .verticalScroll(rememberScrollState()),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(12.dp))
 
             // App Brand Header
-            Box(
-                modifier = Modifier
-                    .size(80.dp)
-                    .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.primaryContainer),
-                contentAlignment = Alignment.Center
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                Text(
-                    text = "🎨",
-                    fontSize = 40.sp
-                )
+                Box(
+                    modifier = Modifier
+                        .size(48.dp)
+                        .clip(CircleShape)
+                        .background(MaterialTheme.colorScheme.primaryContainer),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "🎨",
+                        fontSize = 26.sp
+                    )
+                }
+
+                Column {
+                    Text(
+                        text = "DrawOnMe",
+                        style = MaterialTheme.typography.titleLarge.copy(
+                            fontWeight = FontWeight.ExtraBold
+                        ),
+                        color = MaterialTheme.colorScheme.onBackground
+                    )
+                    Text(
+                        text = "Little Artist Studio",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
             }
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            Text(
-                text = "DrawOnMe",
-                style = MaterialTheme.typography.headlineLarge.copy(
-                    fontWeight = FontWeight.ExtraBold
-                ),
-                color = MaterialTheme.colorScheme.onBackground
-            )
-
-            Text(
-                text = "What would you like to create today?",
-                style = MaterialTheme.typography.bodyLarge,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(top = 8.dp, bottom = 32.dp)
-            )
-
-            // Card 1: Free Scribble Board
-            ModeSelectionCard(
-                title = "Free Scribble Board",
-                subtitle = "Draw, doodle, and write freely on an open notepad with unlimited colors and pens.",
-                badgeEmoji = "✏️",
-                icon = Icons.Default.Draw,
-                containerColor = MaterialTheme.colorScheme.primaryContainer,
-                contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                onClick = onSelectFreeScribble
-            )
+            // Interactive First Touch Rainbow Splash Pad
+            RainbowSplashPad()
 
             Spacer(modifier = Modifier.height(20.dp))
 
-            // Card 2: Cartoon Stencils Studio
+            Text(
+                text = "Choose Your Adventure",
+                style = MaterialTheme.typography.titleMedium.copy(
+                    fontWeight = FontWeight.Bold
+                ),
+                color = MaterialTheme.colorScheme.onBackground,
+                modifier = Modifier.align(Alignment.Start)
+            )
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // Card 1: Magic Doodle (Free Scribble)
             ModeSelectionCard(
-                title = "Cartoon Stencil Studio",
-                subtitle = "Follow guided stencils to trace fun characters like Mickey, Donald, elephants, and lions!",
+                title = "Magic Doodle",
+                subtitle = "Draw & scribble freely on an open notepad with vibrant colors and pens.",
+                badgeEmoji = "✏️",
+                icon = Icons.Default.Draw,
+                containerColor = Color(0xFFFFF3E0), // Warm soft orange/amber
+                contentColor = Color(0xFFE65100),
+                onClick = onSelectFreeScribble
+            )
+
+            Spacer(modifier = Modifier.height(14.dp))
+
+            // Card 2: Learn to Draw (Geometric Stencils)
+            ModeSelectionCard(
+                title = "Learn to Draw",
+                subtitle = "Follow fun stencils! Trace cars, houses, rockets, and cute animals step-by-step.",
                 badgeEmoji = "✨",
                 icon = Icons.Default.AutoAwesome,
-                containerColor = MaterialTheme.colorScheme.tertiaryContainer,
-                contentColor = MaterialTheme.colorScheme.onTertiaryContainer,
+                containerColor = Color(0xFFEDE7F6), // Soft lavender
+                contentColor = Color(0xFF4A148C),
                 onClick = onSelectStencils
             )
 
-            Spacer(modifier = Modifier.height(32.dp))
+            Spacer(modifier = Modifier.height(14.dp))
+
+            // Card 3: My Fridge Door (Gallery)
+            ModeSelectionCard(
+                title = "My Fridge Door",
+                subtitle = "See all your proud masterpieces pinned on the virtual refrigerator!",
+                badgeEmoji = "🖼️",
+                icon = Icons.Default.PhotoLibrary,
+                containerColor = Color(0xFFE0F2F1), // Soft mint
+                contentColor = Color(0xFF004D40),
+                onClick = onSelectFridge
+            )
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            // Parent Reassurance Badge
+            Row(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(MaterialTheme.colorScheme.surfaceContainerHigh)
+                    .padding(horizontal = 14.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Shield,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(16.dp)
+                )
+                Text(
+                    text = "100% Offline • Child-Safe • Ad-Free",
+                    style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
         }
     }
 }
@@ -132,61 +196,65 @@ private fun ModeSelectionCard(
     subtitle: String,
     badgeEmoji: String,
     icon: ImageVector,
-    containerColor: androidx.compose.ui.graphics.Color,
-    contentColor: androidx.compose.ui.graphics.Color,
+    containerColor: Color,
+    contentColor: Color,
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Card(
         modifier = modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(24.dp))
+            .clip(RoundedCornerShape(22.dp))
             .clickable(onClick = onClick),
-        shape = RoundedCornerShape(24.dp),
+        shape = RoundedCornerShape(22.dp),
         colors = CardDefaults.cardColors(
             containerColor = containerColor,
             contentColor = contentColor
         ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
-        Column(
-            modifier = Modifier.padding(20.dp)
+        Row(
+            modifier = Modifier.padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(14.dp)
         ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
+            Box(
+                modifier = Modifier
+                    .size(54.dp)
+                    .clip(CircleShape)
+                    .background(Color.White.copy(alpha = 0.85f)),
+                contentAlignment = Alignment.Center
             ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    Text(
-                        text = badgeEmoji,
-                        fontSize = 28.sp
-                    )
-                    Text(
-                        text = title,
-                        style = MaterialTheme.typography.titleMedium.copy(
-                            fontWeight = FontWeight.Bold
-                        ),
-                        color = contentColor
-                    )
-                }
-
-                Icon(
-                    imageVector = Icons.AutoMirrored.Filled.ArrowForward,
-                    contentDescription = null,
-                    tint = contentColor
+                Text(
+                    text = badgeEmoji,
+                    fontSize = 28.sp
                 )
             }
 
-            Spacer(modifier = Modifier.height(10.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.titleMedium.copy(
+                        fontWeight = FontWeight.Bold
+                    ),
+                    color = contentColor
+                )
 
-            Text(
-                text = subtitle,
-                style = MaterialTheme.typography.bodyMedium,
-                color = contentColor.copy(alpha = 0.85f)
+                Spacer(modifier = Modifier.height(4.dp))
+
+                Text(
+                    text = subtitle,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = contentColor.copy(alpha = 0.85f),
+                    lineHeight = 16.sp
+                )
+            }
+
+            Icon(
+                imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                contentDescription = null,
+                tint = contentColor,
+                modifier = Modifier.size(20.dp)
             )
         }
     }
