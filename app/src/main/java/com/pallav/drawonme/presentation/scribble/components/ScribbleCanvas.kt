@@ -24,6 +24,8 @@ import com.pallav.drawonme.domain.model.Stroke
 import com.pallav.drawonme.presentation.scribble.ScribbleAction
 import com.pallav.drawonme.presentation.scribble.ScribbleUiState
 
+import androidx.compose.foundation.layout.Box
+
 /**
  * ScribbleCanvas renders committed and ongoing drawing strokes.
  * Uses zero-slop touch gesture tracking and offscreen compositing for seamless eraser blending.
@@ -31,49 +33,60 @@ import com.pallav.drawonme.presentation.scribble.ScribbleUiState
  * @param uiState Current UI state containing all committed strokes and active stroke.
  * @param onAction Callback to dispatch drawing actions to the ViewModel.
  * @param modifier Optional modifier applied to the canvas.
+ * @param backgroundContent Optional background composable layer (e.g. stencil guide or grid lines)
+ *        placed behind the drawing layer so it is never erased by the eraser.
  */
 @Composable
 fun ScribbleCanvas(
     uiState: ScribbleUiState,
     onAction: (ScribbleAction) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    backgroundContent: (@Composable () -> Unit)? = null
 ) {
     val backgroundColor = MaterialTheme.colorScheme.surface
 
-    Canvas(
+    Box(
         modifier = modifier
             .fillMaxSize()
             .background(backgroundColor)
-            .graphicsLayer(compositingStrategy = CompositingStrategy.Offscreen)
-            .pointerInput(Unit) {
-                awaitEachGesture {
-                    val down = awaitFirstDown(requireUnconsumed = false)
-                    down.consume()
-                    onAction(ScribbleAction.StartStroke(Point(down.position.x, down.position.y)))
+    ) {
+        // Optional background layer (stencil outline, paper grid, etc.)
+        backgroundContent?.invoke()
 
-                    val pointerId = down.id
-                    while (true) {
-                        val event = awaitPointerEvent()
-                        val change = event.changes.firstOrNull { it.id == pointerId } ?: break
-                        if (!change.pressed) {
+        Canvas(
+            modifier = Modifier
+                .fillMaxSize()
+                .graphicsLayer(compositingStrategy = CompositingStrategy.Offscreen)
+                .pointerInput(Unit) {
+                    awaitEachGesture {
+                        val down = awaitFirstDown(requireUnconsumed = false)
+                        down.consume()
+                        onAction(ScribbleAction.StartStroke(Point(down.position.x, down.position.y)))
+
+                        val pointerId = down.id
+                        while (true) {
+                            val event = awaitPointerEvent()
+                            val change = event.changes.firstOrNull { it.id == pointerId } ?: break
+                            if (!change.pressed) {
+                                change.consume()
+                                onAction(ScribbleAction.EndStroke)
+                                break
+                            }
                             change.consume()
-                            onAction(ScribbleAction.EndStroke)
-                            break
+                            onAction(ScribbleAction.AddPoint(Point(change.position.x, change.position.y)))
                         }
-                        change.consume()
-                        onAction(ScribbleAction.AddPoint(Point(change.position.x, change.position.y)))
                     }
                 }
+        ) {
+            // Draw committed strokes
+            for (stroke in uiState.strokes) {
+                drawScribbleStroke(stroke)
             }
-    ) {
-        // Draw committed strokes
-        for (stroke in uiState.strokes) {
-            drawScribbleStroke(stroke)
-        }
 
-        // Draw active stroke currently being traced
-        uiState.currentStroke?.let { activeStroke ->
-            drawScribbleStroke(activeStroke)
+            // Draw active stroke currently being traced
+            uiState.currentStroke?.let { activeStroke ->
+                drawScribbleStroke(activeStroke)
+            }
         }
     }
 }

@@ -4,10 +4,7 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.material3.Surface
-import androidx.compose.ui.Modifier
-import com.pallav.drawonme.presentation.scribble.ScribbleScreen
+import com.pallav.drawonme.presentation.navigation.DrawOnMeApp
 import com.pallav.drawonme.ui.theme.DrawOnMeTheme
 
 class MainActivity : ComponentActivity() {
@@ -16,9 +13,7 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             DrawOnMeTheme {
-                Surface(modifier = Modifier.fillMaxSize()) {
-                    ScribbleScreen()
-                }
+                DrawOnMeApp()
             }
         }
     }
