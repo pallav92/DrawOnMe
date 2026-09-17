@@ -6,6 +6,8 @@ A delightful, safe, and intuitive Android drawing and tracing app designed speci
 
 ## 🌟 Highlights & Key Features
 
+- **🚀 Dual-Layer Splash Experience**:
+  Zero-flicker native Android 12+ cold start (`androidx.core:core-splashscreen`) paired with a whimsical animated Jetpack Compose intro featuring bouncing palette animations, floating color bubbles, self-drawing rainbow brush underlines, and instant-skip touch interaction.
 - **🌈 "First Touch" Rainbow Splash Pad**:
   An interactive, tactile canvas directly on the onboarding screen where kids can touch and drag to paint glowing rainbow trails with multi-touch support before making any navigation choices.
 - **🎨 Magic Doodle (Freehand Studio)**:
@@ -41,6 +43,7 @@ app/
       ├── navigation/          # AppNavigation state machine & DrawOnMeApp entry
       ├── onboarding/          # OnboardingScreen & RainbowSplashPad
       ├── scribble/            # ScribbleScreen, Canvas, Toolbar, ScribbleViewModel
+      ├── splash/              # SplashScreen with animated palette & floating bubbles
       └── stencil/             # StencilGalleryScreen, StencilDrawingScreen, CelebrationOverlay
 ```
 
