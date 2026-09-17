@@ -5,13 +5,18 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
@@ -31,6 +36,7 @@ import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
@@ -46,7 +52,8 @@ private data class RainbowStroke(
  */
 @Composable
 fun RainbowSplashPad(
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    height: Dp = 190.dp
 ) {
     val strokes = remember { mutableStateListOf<RainbowStroke>() }
     var hasInteracted by remember { mutableStateOf(false) }
@@ -68,7 +75,7 @@ fun RainbowSplashPad(
     Box(
         modifier = modifier
             .fillMaxWidth()
-            .height(115.dp)
+            .height(height)
             .clip(RoundedCornerShape(24.dp))
             .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f))
             .border(2.5.dp, rainbowBorder, RoundedCornerShape(24.dp))
@@ -139,15 +146,53 @@ fun RainbowSplashPad(
             }
         }
 
-        if (!hasInteracted) {
-            Text(
-                text = "✨ Touch & swirl here to make magic! ✨",
-                style = MaterialTheme.typography.bodyMedium.copy(
-                    fontWeight = FontWeight.Bold
-                ),
-                color = MaterialTheme.colorScheme.primary,
-                fontSize = 14.sp
-            )
+        // Welcome prompt cue when pad hasn't been touched yet
+        if (!hasInteracted && strokes.isEmpty()) {
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center,
+                modifier = Modifier.padding(16.dp)
+            ) {
+                Text(
+                    text = "✨",
+                    fontSize = 32.sp
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = "Touch & swirl here to make magic!",
+                    style = MaterialTheme.typography.titleMedium.copy(
+                        fontWeight = FontWeight.Bold
+                    ),
+                    color = MaterialTheme.colorScheme.primary
+                )
+                Spacer(modifier = Modifier.height(2.dp))
+                Text(
+                    text = "Draw glowing rainbow trails with your fingers",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
+                )
+            }
+        }
+
+        // Clear button to reset the pad for endless doodling
+        if (strokes.isNotEmpty()) {
+            TextButton(
+                onClick = {
+                    strokes.clear()
+                    hasInteracted = false
+                },
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(4.dp)
+            ) {
+                Text(
+                    text = "Clear 🔄",
+                    style = MaterialTheme.typography.labelSmall.copy(
+                        fontWeight = FontWeight.Bold
+                    ),
+                    color = MaterialTheme.colorScheme.primary
+                )
+            }
         }
     }
 }
