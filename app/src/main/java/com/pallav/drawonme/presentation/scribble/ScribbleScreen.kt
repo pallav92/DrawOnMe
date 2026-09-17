@@ -15,12 +15,21 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.pallav.drawonme.presentation.scribble.components.DrawingToolbar
 import com.pallav.drawonme.presentation.scribble.components.ScribbleCanvas
 
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material3.FilledTonalIconButton
+import androidx.compose.material3.Icon
+import androidx.compose.ui.unit.dp
+
 /**
  * Stateful entry point for the Scribble Screen.
  */
 @Composable
 fun ScribbleScreen(
     modifier: Modifier = Modifier,
+    onNavigateBack: (() -> Unit)? = null,
     viewModel: ScribbleViewModel = viewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -28,6 +37,7 @@ fun ScribbleScreen(
     ScribbleScreenContent(
         uiState = uiState,
         onAction = viewModel::onAction,
+        onNavigateBack = onNavigateBack,
         modifier = modifier
     )
 }
@@ -39,7 +49,8 @@ fun ScribbleScreen(
 fun ScribbleScreenContent(
     uiState: ScribbleUiState,
     onAction: (ScribbleAction) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onNavigateBack: (() -> Unit)? = null
 ) {
     Box(
         modifier = modifier.fillMaxSize()
@@ -49,6 +60,22 @@ fun ScribbleScreenContent(
             uiState = uiState,
             onAction = onAction
         )
+
+        // Top back button if navigation is enabled
+        if (onNavigateBack != null) {
+            FilledTonalIconButton(
+                onClick = onNavigateBack,
+                modifier = Modifier
+                    .align(Alignment.TopStart)
+                    .statusBarsPadding()
+                    .padding(16.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                    contentDescription = "Back to Home"
+                )
+            }
+        }
 
         // Floating drawing toolbar anchored to the bottom
         DrawingToolbar(
