@@ -1,5 +1,6 @@
 package com.pallav.drawonme.presentation.scribble
 
+import android.content.res.Configuration
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -13,6 +14,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -21,6 +23,9 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -35,6 +40,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -43,6 +49,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.pallav.drawonme.domain.model.SavedArtwork
 import com.pallav.drawonme.domain.repository.ArtworkRepository
 import com.pallav.drawonme.domain.repository.BoardDraftRepository
+import com.pallav.drawonme.presentation.scribble.components.CollapsibleDrawingToolbar
 import com.pallav.drawonme.presentation.scribble.components.DrawingToolbar
 import com.pallav.drawonme.presentation.scribble.components.ScribbleCanvas
 import com.pallav.drawonme.presentation.scribble.components.ZoomControlsHud
@@ -85,7 +92,7 @@ fun ScribbleScreen(
             if (artworkRepository != null && uiState.strokes.isNotEmpty()) {
                 coroutineScope.launch {
                     artworkRepository.saveArtwork(
-                        SavedArtwork(
+                        SavedArtwork.createCropped(
                             title = "Magic Doodle",
                             strokes = uiState.strokes
                         )
@@ -122,32 +129,66 @@ fun ScribbleScreenContent(
             transformState = transformState
         )
 
-        // Top back button if navigation is enabled
-        if (onNavigateBack != null) {
-            FilledTonalIconButton(
-                onClick = onNavigateBack,
-                modifier = Modifier
-                    .align(Alignment.TopStart)
-                    .statusBarsPadding()
-                    .padding(16.dp)
+        // Minimal Top Left pill: Back button + Title
+        Surface(
+            shape = RoundedCornerShape(24.dp),
+            color = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.92f),
+            tonalElevation = 3.dp,
+            shadowElevation = 4.dp,
+            modifier = Modifier
+                .align(Alignment.TopStart)
+                .statusBarsPadding()
+                .padding(start = 16.dp, top = 12.dp)
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.padding(
+                    start = if (onNavigateBack != null) 4.dp else 12.dp,
+                    end = 14.dp,
+                    top = 4.dp,
+                    bottom = 4.dp
+                )
             ) {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                    contentDescription = "Back to Home"
+                if (onNavigateBack != null) {
+                    IconButton(
+                        onClick = onNavigateBack,
+                        modifier = Modifier.size(36.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "Back to Home",
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(4.dp))
+                }
+                Text(
+                    text = "Magic Doodle 🎨",
+                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
                 )
             }
         }
 
-        // Top right "Pin to Fridge" button
+        // Minimal Top Right pill: Pin to Fridge button
         if (onPinToFridge != null && uiState.strokes.isNotEmpty()) {
-            FilledTonalIconButton(
-                onClick = onPinToFridge,
+            Surface(
+                shape = RoundedCornerShape(24.dp),
+                color = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.92f),
+                tonalElevation = 3.dp,
+                shadowElevation = 4.dp,
                 modifier = Modifier
                     .align(Alignment.TopEnd)
                     .statusBarsPadding()
-                    .padding(16.dp)
+                    .padding(end = 16.dp, top = 12.dp)
             ) {
-                Text(text = "📌", fontSize = 20.sp)
+                IconButton(
+                    onClick = onPinToFridge,
+                    modifier = Modifier
+                        .padding(horizontal = 4.dp, vertical = 4.dp)
+                        .size(36.dp)
+                ) {
+                    Text(text = "📌", fontSize = 20.sp)
+                }
             }
         }
 
@@ -180,35 +221,60 @@ fun ScribbleScreenContent(
             }
         }
 
-        // Floating bottom controls: Zoom HUD & Drawing toolbar
-        Column(
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .navigationBarsPadding(),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Row(
+        val configuration = LocalConfiguration.current
+        val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
+
+        val maxEraserSize = remember(transformState.viewportSize) {
+            if (transformState.viewportSize.width > 0 && transformState.viewportSize.height > 0) {
+                minOf(transformState.viewportSize.width.toFloat(), transformState.viewportSize.height.toFloat()) / 3f
+            } else {
+                360f
+            }
+        }
+
+        if (isLandscape) {
+            // Zoom controls HUD tucked neatly in top-left under the minimal top bar pill
+            Box(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 20.dp, vertical = 6.dp),
-                horizontalArrangement = Arrangement.Start
+                    .align(Alignment.TopStart)
+                    .statusBarsPadding()
+                    .padding(start = 16.dp, top = 68.dp)
             ) {
                 ZoomControlsHud(transformState = transformState)
             }
 
-            val maxEraserSize = remember(transformState.viewportSize) {
-                if (transformState.viewportSize.width > 0 && transformState.viewportSize.height > 0) {
-                    minOf(transformState.viewportSize.width.toFloat(), transformState.viewportSize.height.toFloat()) / 3f
-                } else {
-                    360f
-                }
-            }
-
-            DrawingToolbar(
+            // Compact collapsible toolbar anchored at bottom
+            CollapsibleDrawingToolbar(
                 uiState = uiState,
                 onAction = onAction,
-                maxEraserSize = maxEraserSize
+                maxEraserSize = maxEraserSize,
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .navigationBarsPadding()
             )
+        } else {
+            // Floating bottom controls: Zoom HUD & Collapsible Drawing toolbar stacked vertically in portrait
+            Column(
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .navigationBarsPadding(),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 20.dp, vertical = 4.dp),
+                    horizontalArrangement = Arrangement.Start
+                ) {
+                    ZoomControlsHud(transformState = transformState)
+                }
+
+                CollapsibleDrawingToolbar(
+                    uiState = uiState,
+                    onAction = onAction,
+                    maxEraserSize = maxEraserSize
+                )
+            }
         }
 
         // Clear confirmation dialog

@@ -21,14 +21,12 @@ import androidx.compose.material.icons.filled.BookmarkAdd
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.CenterAlignedTopAppBar
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -60,6 +58,7 @@ import com.pallav.drawonme.domain.repository.BoardDraftRepository
 import com.pallav.drawonme.domain.repository.StencilRepository
 import com.pallav.drawonme.presentation.scribble.ScribbleAction
 import com.pallav.drawonme.presentation.scribble.ScribbleViewModel
+import com.pallav.drawonme.presentation.scribble.components.CollapsibleDrawingToolbar
 import com.pallav.drawonme.presentation.scribble.components.DrawingToolbar
 import com.pallav.drawonme.presentation.scribble.components.ScribbleCanvas
 import com.pallav.drawonme.presentation.stencil.drawing.components.CelebrationOverlay
@@ -79,7 +78,6 @@ import kotlinx.coroutines.launch
  * @param boardId Unique identifier for this stencil board.
  * @param viewModel ViewModel managing strokes, colors, undo/redo, and tools.
  */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun StencilDrawingScreen(
     stencilId: String,
@@ -131,33 +129,65 @@ fun StencilDrawingScreen(
             }
         )
 
-        // Top AppBar for Navigation, Magic Wand, Fridge Pin, and Stencil Controls
-        CenterAlignedTopAppBar(
-            title = {
+        // Minimal Top Left pill: Back button + Stencil Title
+        Surface(
+            shape = RoundedCornerShape(24.dp),
+            color = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.92f),
+            tonalElevation = 3.dp,
+            shadowElevation = 4.dp,
+            modifier = Modifier
+                .align(Alignment.TopStart)
+                .statusBarsPadding()
+                .padding(start = 16.dp, top = 12.dp)
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.padding(start = 4.dp, end = 14.dp, top = 4.dp, bottom = 4.dp)
+            ) {
+                IconButton(
+                    onClick = onNavigateBack,
+                    modifier = Modifier.size(36.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                        contentDescription = "Back to Gallery",
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+                Spacer(modifier = Modifier.width(4.dp))
                 Text(
                     text = stencil?.let { "${it.iconEmoji} ${it.title}" } ?: "Cartoon Studio",
                     style = MaterialTheme.typography.titleMedium.copy(
                         fontWeight = FontWeight.Bold
                     )
                 )
-            },
-            navigationIcon = {
-                IconButton(onClick = onNavigateBack) {
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                        contentDescription = "Back to Gallery"
-                    )
-                }
-            },
-            actions = {
+            }
+        }
+
+        // Minimal Top Right pill: Magic Wand, Pin to Fridge, and Guide Toggle
+        Surface(
+            shape = RoundedCornerShape(24.dp),
+            color = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.92f),
+            tonalElevation = 3.dp,
+            shadowElevation = 4.dp,
+            modifier = Modifier
+                .align(Alignment.TopEnd)
+                .statusBarsPadding()
+                .padding(end = 16.dp, top = 12.dp)
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.padding(horizontal = 4.dp, vertical = 4.dp)
+            ) {
                 // Magic Wand Reveal & Celebration button
                 IconButton(
                     onClick = {
                         isGuideVisible = false
                         showCelebration = true
-                    }
+                    },
+                    modifier = Modifier.size(36.dp)
                 ) {
-                    Text(text = "🪄", fontSize = 22.sp)
+                    Text(text = "🪄", fontSize = 20.sp)
                 }
 
                 // Pin to Fridge button
@@ -165,7 +195,7 @@ fun StencilDrawingScreen(
                     IconButton(
                         onClick = {
                             coroutineScope.launch {
-                                val artwork = SavedArtwork(
+                                val artwork = SavedArtwork.createCropped(
                                     title = stencil?.title ?: "My Masterpiece",
                                     strokes = uiState.strokes,
                                     stencilId = stencilId
@@ -173,14 +203,18 @@ fun StencilDrawingScreen(
                                 artworkRepository.saveArtwork(artwork)
                                 showPinnedToast = true
                             }
-                        }
+                        },
+                        modifier = Modifier.size(36.dp)
                     ) {
-                        Text(text = "📌", fontSize = 20.sp)
+                        Text(text = "📌", fontSize = 18.sp)
                     }
                 }
 
                 // Toggle guide visibility
-                IconButton(onClick = { isGuideVisible = !isGuideVisible }) {
+                IconButton(
+                    onClick = { isGuideVisible = !isGuideVisible },
+                    modifier = Modifier.size(36.dp)
+                ) {
                     Icon(
                         imageVector = if (isGuideVisible) {
                             Icons.Default.Visibility
@@ -196,17 +230,12 @@ fun StencilDrawingScreen(
                             MaterialTheme.colorScheme.primary
                         } else {
                             MaterialTheme.colorScheme.onSurfaceVariant
-                        }
+                        },
+                        modifier = Modifier.size(20.dp)
                     )
                 }
-            },
-            colors = TopAppBarDefaults.topAppBarColors(
-                containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.85f)
-            ),
-            modifier = Modifier
-                .align(Alignment.TopCenter)
-                .statusBarsPadding()
-        )
+            }
+        }
 
         // Toast feedback when pinned to fridge
         AnimatedVisibility(
@@ -237,8 +266,8 @@ fun StencilDrawingScreen(
             }
         }
 
-        // Floating drawing toolbar anchored to the bottom
-        DrawingToolbar(
+        // Collapsible drawing toolbar anchored to the bottom
+        CollapsibleDrawingToolbar(
             uiState = uiState,
             onAction = viewModel::onAction,
             modifier = Modifier
@@ -280,10 +309,13 @@ private fun DrawScope.drawStencilGuide(
 ) {
     val width = size.width
     val height = size.height
-    // Keep 1:1 aspect ratio centered on screen, scaled to 92% to boldly fill the canvas
-    val scale = minOf(width, height) * 0.92f
+    val isLandscape = width > height
+
+    // In portrait, scale to 92% of width to boldly fill canvas, offset slightly up
+    // In landscape, scale to 76% of height to comfortably fill vertical space now that top bar is minimal
+    val scale = if (isLandscape) height * 0.76f else minOf(width, height) * 0.92f
     val offsetX = (width - scale) / 2f
-    val offsetY = (height - scale) / 2f - 40f
+    val offsetY = (height - scale) / 2f
 
     val strokeColor = guideColor.copy(alpha = opacity)
     val dashEffect = PathEffect.dashPathEffect(floatArrayOf(14f, 10f), 0f)

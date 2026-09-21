@@ -1,5 +1,6 @@
 package com.pallav.drawonme.presentation.fridge
 
+import android.content.res.Configuration
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -8,13 +9,20 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
@@ -27,15 +35,13 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -47,12 +53,15 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -82,39 +91,21 @@ fun FridgeGalleryScreen(
 
     var artworkToDelete by remember { mutableStateOf<SavedArtwork?>(null) }
     var previewArtwork by remember { mutableStateOf<SavedArtwork?>(null) }
+    val isLandscape = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
 
-    Scaffold(
-        modifier = modifier.fillMaxSize(),
-        topBar = {
-            CenterAlignedTopAppBar(
-                title = {
-                    Text(
-                        text = "My Fridge Door 🖼️",
-                        style = MaterialTheme.typography.titleLarge.copy(
-                            fontWeight = FontWeight.Bold
-                        )
-                    )
-                },
-                navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Back to Home"
-                        )
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.background
-                )
-            )
-        }
-    ) { innerPadding ->
+    Box(
+        modifier = modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background)
+    ) {
         if (artworks.isEmpty()) {
             // Empty fridge state
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(innerPadding)
+                    .statusBarsPadding()
+                    .navigationBarsPadding()
+                    .verticalScroll(rememberScrollState())
                     .padding(32.dp),
                 contentAlignment = Alignment.Center
             ) {
@@ -159,12 +150,15 @@ fun FridgeGalleryScreen(
                 contentPadding = PaddingValues(
                     start = 16.dp,
                     end = 16.dp,
-                    top = innerPadding.calculateTopPadding() + 8.dp,
-                    bottom = innerPadding.calculateBottomPadding() + 24.dp
+                    top = 68.dp,
+                    bottom = 24.dp
                 ),
                 horizontalArrangement = Arrangement.spacedBy(16.dp),
                 verticalArrangement = Arrangement.spacedBy(20.dp),
-                modifier = Modifier.fillMaxSize()
+                modifier = Modifier
+                    .fillMaxSize()
+                    .statusBarsPadding()
+                    .navigationBarsPadding()
             ) {
                 items(
                     items = artworks,
@@ -174,6 +168,66 @@ fun FridgeGalleryScreen(
                         artwork = artwork,
                         onClick = { previewArtwork = artwork },
                         onDelete = { artworkToDelete = artwork }
+                    )
+                }
+            }
+        }
+
+        // Minimal Top Left pill: Back button + Screen Title
+        Surface(
+            shape = RoundedCornerShape(24.dp),
+            color = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.92f),
+            tonalElevation = 3.dp,
+            shadowElevation = 4.dp,
+            modifier = Modifier
+                .align(Alignment.TopStart)
+                .statusBarsPadding()
+                .padding(start = 16.dp, top = 12.dp)
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.padding(start = 4.dp, end = 14.dp, top = 4.dp, bottom = 4.dp)
+            ) {
+                IconButton(
+                    onClick = onNavigateBack,
+                    modifier = Modifier.size(36.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                        contentDescription = "Back to Home",
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+                Spacer(modifier = Modifier.width(4.dp))
+                Text(
+                    text = "My Fridge Door 🖼️",
+                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
+                )
+            }
+        }
+
+        // Minimal Top Right pill: New Drawing button (when artworks is not empty)
+        if (artworks.isNotEmpty()) {
+            Surface(
+                shape = RoundedCornerShape(24.dp),
+                color = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.92f),
+                tonalElevation = 3.dp,
+                shadowElevation = 4.dp,
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .statusBarsPadding()
+                    .padding(end = 16.dp, top = 12.dp)
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier
+                        .clickable(onClick = onStartNewDrawing)
+                        .padding(horizontal = 14.dp, vertical = 8.dp)
+                ) {
+                    Text(
+                        text = "🎨 New Drawing",
+                        style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold),
+                        color = MaterialTheme.colorScheme.primary
                     )
                 }
             }
@@ -223,7 +277,7 @@ fun FridgeGalleryScreen(
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(280.dp)
+                            .height(if (isLandscape) 160.dp else 280.dp)
                             .clip(RoundedCornerShape(16.dp))
                             .background(Color.White)
                     ) {
@@ -255,6 +309,33 @@ private fun PinnedArtworkCard(
         formatter.format(Date(artwork.createdAt))
     }
 
+    val visibleStrokes = remember(artwork.strokes) {
+        artwork.strokes.filter { it.tool != DrawingTool.ERASER && it.points.isNotEmpty() }
+    }
+
+    val artworkAspectRatio = remember(visibleStrokes) {
+        if (visibleStrokes.isEmpty()) {
+            1.2f
+        } else {
+            var minX = Float.MAX_VALUE
+            var maxX = -Float.MAX_VALUE
+            var minY = Float.MAX_VALUE
+            var maxY = -Float.MAX_VALUE
+            for (s in visibleStrokes) {
+                val hw = s.strokeWidth / 2f
+                for (p in s.points) {
+                    if (p.x - hw < minX) minX = p.x - hw
+                    if (p.x + hw > maxX) maxX = p.x + hw
+                    if (p.y - hw < minY) minY = p.y - hw
+                    if (p.y + hw > maxY) maxY = p.y + hw
+                }
+            }
+            val spanX = (maxX - minX).coerceAtLeast(1f)
+            val spanY = (maxY - minY).coerceAtLeast(1f)
+            (spanX / spanY).coerceIn(0.85f, 1.45f)
+        }
+    }
+
     Box(
         modifier = modifier.fillMaxWidth(),
         contentAlignment = Alignment.TopCenter
@@ -274,11 +355,11 @@ private fun PinnedArtworkCard(
             Column(
                 modifier = Modifier.padding(12.dp)
             ) {
-                // Drawing Canvas Preview
+                // Drawing Canvas Preview with artwork-adaptive aspect ratio
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(130.dp)
+                        .aspectRatio(artworkAspectRatio)
                         .clip(RoundedCornerShape(12.dp))
                         .background(Color(0xFFFAFAFA))
                 ) {
@@ -349,47 +430,55 @@ private fun ArtworkThumbnailCanvas(
     strokes: List<DomainStroke>,
     modifier: Modifier = Modifier
 ) {
-    Canvas(modifier = modifier) {
-        if (strokes.isEmpty()) return@Canvas
+    Canvas(
+        modifier = modifier.graphicsLayer(compositingStrategy = CompositingStrategy.Offscreen)
+    ) {
+        val visibleStrokes = strokes.filter { it.tool != DrawingTool.ERASER && it.points.isNotEmpty() }
+        if (visibleStrokes.isEmpty()) return@Canvas
 
         val w = size.width
         val h = size.height
         if (w <= 0f || h <= 0f) return@Canvas
 
-        // Calculate bounding box of all stroke points to scale the preview nicely
+        // Calculate bounding box of VISIBLE stroke points (ignore erasers so erasers never expand bounds)
         var minX = Float.MAX_VALUE
-        var maxX = Float.MIN_VALUE
+        var maxX = -Float.MAX_VALUE
         var minY = Float.MAX_VALUE
-        var maxY = Float.MIN_VALUE
+        var maxY = -Float.MAX_VALUE
 
-        for (stroke in strokes) {
+        for (stroke in visibleStrokes) {
+            val halfWidth = stroke.strokeWidth / 2f
             for (p in stroke.points) {
-                if (p.x < minX) minX = p.x
-                if (p.x > maxX) maxX = p.x
-                if (p.y < minY) minY = p.y
-                if (p.y > maxY) maxY = p.y
+                if (p.x - halfWidth < minX) minX = p.x - halfWidth
+                if (p.x + halfWidth > maxX) maxX = p.x + halfWidth
+                if (p.y - halfWidth < minY) minY = p.y - halfWidth
+                if (p.y + halfWidth > maxY) maxY = p.y + halfWidth
             }
         }
 
         val strokeSpanX = (maxX - minX).coerceAtLeast(1f)
         val strokeSpanY = (maxY - minY).coerceAtLeast(1f)
 
-        val scale = minOf(w * 0.85f / strokeSpanX, h * 0.85f / strokeSpanY)
+        // Scale to fill 90% of thumbnail dimensions
+        val scale = minOf((w * 0.90f) / strokeSpanX, (h * 0.90f) / strokeSpanY)
         val centerOffsetX = (w - strokeSpanX * scale) / 2f - minX * scale
         val centerOffsetY = (h - strokeSpanY * scale) / 2f - minY * scale
 
         for (stroke in strokes) {
-            if (stroke.tool == DrawingTool.ERASER || stroke.points.isEmpty()) continue
+            if (stroke.points.isEmpty()) continue
 
-            val drawColor = Color(stroke.color.argb)
-            val strokeWidth = (stroke.strokeWidth * scale * 0.35f).coerceAtLeast(2f)
+            val isEraser = stroke.tool == DrawingTool.ERASER
+            val drawColor = if (isEraser) Color.Transparent else Color(stroke.color.argb)
+            val blendMode = if (isEraser) BlendMode.Clear else BlendMode.SrcOver
+            val strokeWidth = (stroke.strokeWidth * scale).coerceIn(2.5f, 18f)
 
             if (stroke.points.size == 1) {
                 val pt = stroke.points[0]
                 drawCircle(
                     color = drawColor,
                     radius = strokeWidth / 2f,
-                    center = Offset(pt.x * scale + centerOffsetX, pt.y * scale + centerOffsetY)
+                    center = Offset(pt.x * scale + centerOffsetX, pt.y * scale + centerOffsetY),
+                    blendMode = blendMode
                 )
             } else {
                 val path = Path()
@@ -397,9 +486,18 @@ private fun ArtworkThumbnailCanvas(
                 path.moveTo(first.x * scale + centerOffsetX, first.y * scale + centerOffsetY)
 
                 for (i in 1 until stroke.points.size) {
-                    val p = stroke.points[i]
-                    path.lineTo(p.x * scale + centerOffsetX, p.y * scale + centerOffsetY)
+                    val prev = stroke.points[i - 1]
+                    val curr = stroke.points[i]
+                    val prevX = prev.x * scale + centerOffsetX
+                    val prevY = prev.y * scale + centerOffsetY
+                    val currX = curr.x * scale + centerOffsetX
+                    val currY = curr.y * scale + centerOffsetY
+                    val midX = (prevX + currX) / 2f
+                    val midY = (prevY + currY) / 2f
+                    path.quadraticTo(prevX, prevY, midX, midY)
                 }
+                val last = stroke.points.last()
+                path.lineTo(last.x * scale + centerOffsetX, last.y * scale + centerOffsetY)
 
                 drawPath(
                     path = path,
@@ -408,7 +506,8 @@ private fun ArtworkThumbnailCanvas(
                         width = strokeWidth,
                         cap = StrokeCap.Round,
                         join = StrokeJoin.Round
-                    )
+                    ),
+                    blendMode = blendMode
                 )
             }
         }
