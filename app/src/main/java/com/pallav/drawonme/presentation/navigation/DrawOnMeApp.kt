@@ -40,7 +40,9 @@ fun DrawOnMeApp(
         boardDraftRepository ?: FileBoardDraftRepository(File(context.filesDir, "board_drafts"))
     }
 
-    var backStack by remember { mutableStateOf(listOf<AppScreen>(AppScreen.Splash)) }
+    var backStack by androidx.compose.runtime.saveable.rememberSaveable(saver = AppScreen.BackStackSaver) {
+        mutableStateOf(listOf<AppScreen>(AppScreen.Splash))
+    }
     val currentScreen = backStack.last()
 
     val canGoBack = backStack.size > 1 && currentScreen !is AppScreen.Splash

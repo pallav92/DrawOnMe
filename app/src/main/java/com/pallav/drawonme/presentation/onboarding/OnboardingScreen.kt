@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -82,25 +83,33 @@ fun OnboardingScreen(
                 .navigationBarsPadding()
                 .padding(horizontal = 20.dp, vertical = 12.dp)
         ) {
-            val availableHeight = maxHeight
+            val isLandscape = maxWidth > maxHeight
 
-            OnboardingLayout(
-                availableHeight = availableHeight,
-                modifier = Modifier
-                    .fillMaxSize()
-                    .verticalScroll(rememberScrollState()),
-                header = {
-                    AppBrandHeader()
-                },
-                content = {
-                    OnboardingBottomContent(
-                        onSelectFreeScribble = onSelectFreeScribble,
-                        onSelectStencils = onSelectStencils,
-                        onSelectFridge = onSelectFridge,
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                }
-            )
+            if (isLandscape) {
+                OnboardingLandscapeContent(
+                    onSelectFreeScribble = onSelectFreeScribble,
+                    onSelectStencils = onSelectStencils,
+                    onSelectFridge = onSelectFridge
+                )
+            } else {
+                OnboardingLayout(
+                    availableHeight = maxHeight,
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .verticalScroll(rememberScrollState()),
+                    header = {
+                        AppBrandHeader()
+                    },
+                    content = {
+                        OnboardingBottomContent(
+                            onSelectFreeScribble = onSelectFreeScribble,
+                            onSelectStencils = onSelectStencils,
+                            onSelectFridge = onSelectFridge,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
+                )
+            }
         }
     }
 }
@@ -265,25 +274,109 @@ private fun OnboardingBottomContent(
 
         Spacer(modifier = Modifier.height(24.dp))
 
-        // Parent Reassurance Badge
-        Row(
+        ParentReassuranceBadge()
+    }
+}
+
+@Composable
+private fun ParentReassuranceBadge(
+    modifier: Modifier = Modifier
+) {
+    Row(
+        modifier = modifier
+            .clip(RoundedCornerShape(16.dp))
+            .background(MaterialTheme.colorScheme.surfaceContainerHigh)
+            .padding(horizontal = 14.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        Icon(
+            imageVector = Icons.Default.Shield,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.size(16.dp)
+        )
+        Text(
+            text = "100% Offline • Child-Safe • Ad-Free",
+            style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium),
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    }
+}
+
+@Composable
+private fun OnboardingLandscapeContent(
+    onSelectFreeScribble: () -> Unit,
+    onSelectStencils: () -> Unit,
+    onSelectFridge: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Row(
+        modifier = modifier.fillMaxSize(),
+        horizontalArrangement = Arrangement.spacedBy(24.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        // Left Column: Brand Header, Compact Rainbow Pad, and Safety Badge
+        Column(
             modifier = Modifier
-                .clip(RoundedCornerShape(16.dp))
-                .background(MaterialTheme.colorScheme.surfaceContainerHigh)
-                .padding(horizontal = 14.dp, vertical = 8.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                .weight(1f)
+                .fillMaxHeight(),
+            verticalArrangement = Arrangement.SpaceBetween,
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Icon(
-                imageVector = Icons.Default.Shield,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.size(16.dp)
+            AppBrandHeader()
+
+            RainbowSplashPad(
+                height = 140.dp
             )
+
+            ParentReassuranceBadge()
+        }
+
+        // Right Column: Mode Cards with smooth scrolling
+        Column(
+            modifier = Modifier
+                .weight(1.2f)
+                .fillMaxHeight()
+                .verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
             Text(
-                text = "100% Offline • Child-Safe • Ad-Free",
-                style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium),
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                text = "Choose Your Adventure",
+                style = MaterialTheme.typography.titleMedium.copy(
+                    fontWeight = FontWeight.Bold
+                ),
+                color = MaterialTheme.colorScheme.onBackground
+            )
+
+            ModeSelectionCard(
+                title = "Magic Doodle",
+                subtitle = "Draw & scribble freely on an open notepad with vibrant colors and pens.",
+                badgeEmoji = "✏️",
+                icon = Icons.Default.Draw,
+                containerColor = Color(0xFFFFF3E0),
+                contentColor = Color(0xFFE65100),
+                onClick = onSelectFreeScribble
+            )
+
+            ModeSelectionCard(
+                title = "Learn to Draw",
+                subtitle = "Follow fun stencils! Trace cars, houses, rockets, and cute animals step-by-step.",
+                badgeEmoji = "✨",
+                icon = Icons.Default.AutoAwesome,
+                containerColor = Color(0xFFEDE7F6),
+                contentColor = Color(0xFF4A148C),
+                onClick = onSelectStencils
+            )
+
+            ModeSelectionCard(
+                title = "My Fridge Door",
+                subtitle = "See all your proud masterpieces pinned on the virtual refrigerator!",
+                badgeEmoji = "🖼️",
+                icon = Icons.Default.PhotoLibrary,
+                containerColor = Color(0xFFE0F2F1),
+                contentColor = Color(0xFF004D40),
+                onClick = onSelectFridge
             )
         }
     }

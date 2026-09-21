@@ -149,18 +149,29 @@ class CanvasTransformState(
         const val MIN_ZOOM: Float = 0.20f // 20%: View entire 5x workspace
         const val MAX_ZOOM: Float = 5.00f // 500%: Deep precision zoom
         const val ZOOM_STEP_FACTOR: Float = 1.25f // 25% zoom step
+
+        val Saver: androidx.compose.runtime.saveable.Saver<CanvasTransformState, List<Float>> =
+            androidx.compose.runtime.saveable.Saver(
+                save = { state -> listOf(state.zoom, state.pan.x, state.pan.y) },
+                restore = { list ->
+                    CanvasTransformState(
+                        initialZoom = list.getOrElse(0) { 1.0f },
+                        initialPan = Offset(list.getOrElse(1) { 0f }, list.getOrElse(2) { 0f })
+                    )
+                }
+            )
     }
 }
 
 /**
- * Creates and remembers a [CanvasTransformState] instance across recompositions.
+ * Creates and remembers a [CanvasTransformState] instance across recompositions and configuration changes.
  */
 @Composable
 fun rememberCanvasTransformState(
     initialZoom: Float = 1.0f,
     initialPan: Offset = Offset.Zero
 ): CanvasTransformState {
-    return remember {
+    return androidx.compose.runtime.saveable.rememberSaveable(saver = CanvasTransformState.Saver) {
         CanvasTransformState(
             initialZoom = initialZoom,
             initialPan = initialPan

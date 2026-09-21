@@ -13,8 +13,10 @@
         android:theme="@style/Theme.DrawOnMe">
         <activity
             android:name=".MainActivity"
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|uiMode"
             android:exported="true"
             android:label="@string/app_name"
+            android:screenOrientation="fullUser"
             android:theme="@style/Theme.DrawOnMe.Starting"
             android:windowSoftInputMode="adjustResize">
             <intent-filter>

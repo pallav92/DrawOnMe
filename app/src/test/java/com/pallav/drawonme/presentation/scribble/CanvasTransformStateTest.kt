@@ -99,4 +99,18 @@ class CanvasTransformStateTest {
         assertEquals(0f, transformState.pan.x, 0.01f)
         assertEquals(0f, transformState.pan.y, 0.01f)
     }
+
+    @Test
+    fun saver_persistsAndRestoresZoomAndPan() {
+        transformState.zoomBy(2.5f, Offset(200f, 300f))
+        transformState.panBy(Offset(150f, -250f))
+
+        val scope = androidx.compose.runtime.saveable.SaverScope { true }
+        val saved = with(CanvasTransformState.Saver) { scope.save(transformState) }
+        val restored = CanvasTransformState.Saver.restore(saved!!)
+
+        assertEquals(transformState.zoom, restored!!.zoom, 0.001f)
+        assertEquals(transformState.pan.x, restored.pan.x, 0.001f)
+        assertEquals(transformState.pan.y, restored.pan.y, 0.001f)
+    }
 }
