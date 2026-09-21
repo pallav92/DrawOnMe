@@ -56,6 +56,7 @@ import com.pallav.drawonme.data.repository.InMemoryStencilRepository
 import com.pallav.drawonme.domain.model.SavedArtwork
 import com.pallav.drawonme.domain.model.Stencil
 import com.pallav.drawonme.domain.repository.ArtworkRepository
+import com.pallav.drawonme.domain.repository.BoardDraftRepository
 import com.pallav.drawonme.domain.repository.StencilRepository
 import com.pallav.drawonme.presentation.scribble.ScribbleAction
 import com.pallav.drawonme.presentation.scribble.ScribbleViewModel
@@ -74,6 +75,8 @@ import kotlinx.coroutines.launch
  * @param modifier Optional modifier applied to the screen root.
  * @param repository Repository supplying available stencils.
  * @param artworkRepository Optional repository for saving artwork to the fridge.
+ * @param boardDraftRepository Optional repository for loading and saving board strokes.
+ * @param boardId Unique identifier for this stencil board.
  * @param viewModel ViewModel managing strokes, colors, undo/redo, and tools.
  */
 @OptIn(ExperimentalMaterial3Api::class)
@@ -84,7 +87,12 @@ fun StencilDrawingScreen(
     modifier: Modifier = Modifier,
     repository: StencilRepository = remember { InMemoryStencilRepository() },
     artworkRepository: ArtworkRepository? = null,
-    viewModel: ScribbleViewModel = viewModel()
+    boardDraftRepository: BoardDraftRepository? = null,
+    boardId: String = ScribbleViewModel.stencilBoardId(stencilId),
+    viewModel: ScribbleViewModel = viewModel(
+        key = "scribble_vm_$boardId",
+        factory = ScribbleViewModel.provideFactory(boardId, boardDraftRepository)
+    )
 ) {
     val stencil = remember(stencilId) { repository.getStencilById(stencilId) }
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()

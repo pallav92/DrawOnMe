@@ -11,7 +11,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import com.pallav.drawonme.data.repository.FileArtworkRepository
+import com.pallav.drawonme.data.repository.FileBoardDraftRepository
 import com.pallav.drawonme.domain.repository.ArtworkRepository
+import com.pallav.drawonme.domain.repository.BoardDraftRepository
 import com.pallav.drawonme.presentation.fridge.FridgeGalleryScreen
 import com.pallav.drawonme.presentation.onboarding.OnboardingScreen
 import com.pallav.drawonme.presentation.scribble.ScribbleScreen
@@ -27,11 +29,15 @@ import java.io.File
 @Composable
 fun DrawOnMeApp(
     modifier: Modifier = Modifier,
-    artworkRepository: ArtworkRepository? = null
+    artworkRepository: ArtworkRepository? = null,
+    boardDraftRepository: BoardDraftRepository? = null
 ) {
     val context = LocalContext.current
     val repository: ArtworkRepository = remember {
         artworkRepository ?: FileArtworkRepository(File(context.filesDir, "saved_artworks"))
+    }
+    val draftRepository: BoardDraftRepository = remember {
+        boardDraftRepository ?: FileBoardDraftRepository(File(context.filesDir, "board_drafts"))
     }
 
     var backStack by remember { mutableStateOf(listOf<AppScreen>(AppScreen.Splash)) }
@@ -77,7 +83,8 @@ fun DrawOnMeApp(
             is AppScreen.FreeScribble -> {
                 ScribbleScreen(
                     onNavigateBack = popBack,
-                    artworkRepository = repository
+                    artworkRepository = repository,
+                    boardDraftRepository = draftRepository
                 )
             }
 
@@ -94,7 +101,8 @@ fun DrawOnMeApp(
                 StencilDrawingScreen(
                     stencilId = currentScreen.stencilId,
                     onNavigateBack = popBack,
-                    artworkRepository = repository
+                    artworkRepository = repository,
+                    boardDraftRepository = draftRepository
                 )
             }
 

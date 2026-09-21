@@ -2,22 +2,39 @@ package com.pallav.drawonme.presentation.scribble
 
 import com.pallav.drawonme.domain.model.DrawingTool
 import com.pallav.drawonme.domain.model.Point
+import com.pallav.drawonme.domain.model.Stroke
 import com.pallav.drawonme.domain.model.StrokeColor
+import com.pallav.drawonme.domain.repository.BoardDraftRepository
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.resetMain
+import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.test.setMain
+import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import org.junit.Test
 
+@OptIn(ExperimentalCoroutinesApi::class)
 class ScribbleViewModelTest {
 
+    private val testDispatcher = StandardTestDispatcher()
     private lateinit var viewModel: ScribbleViewModel
 
     @Before
     fun setUp() {
+        Dispatchers.setMain(testDispatcher)
         viewModel = ScribbleViewModel()
+    }
+
+    @After
+    fun tearDown() {
+        Dispatchers.resetMain()
     }
 
     @Test
@@ -202,5 +219,91 @@ class ScribbleViewModelTest {
 
         viewModel.onAction(ScribbleAction.SetStrokeWidth(40f))
         assertEquals(40f, viewModel.uiState.value.strokeWidth)
+    }
+
+    @Test
+    fun init_loadsStrokesFromRepository() = runTest(testDispatcher) {
+        val repo = FakeBoardDraftRepository()
+        val initialStroke = Stroke(
+            points = listOf(Point(1f, 1f)),
+            color = StrokeColor.Red,
+            strokeWidth = 6f,
+            tool = DrawingTool.PEN
+        )
+        repo.saveBoardStrokes("board_1", listOf(initialStroke))
+
+        val vm = ScribbleViewModel(boardId = "board_1", boardDraftRepository = repo)
+        testScheduler.advanceUntilIdle()
+
+        assertEquals(1, vm.uiState.value.strokes.size)
+        assertEquals(initialStroke.id, vm.uiState.value.strokes.first().id)
+    }
+
+    @Test
+    fun endStroke_persistsToRepository() = runTest(testDispatcher) {
+        val repo = FakeBoardDraftRepository()
+        val vm = ScribbleViewModel(boardId = "board_2", boardDraftRepository = repo)
+
+        vm.onAction(ScribbleAction.StartStroke(Point(10f, 10f)))
+        vm.onAction(ScribbleAction.AddPoint(Point(20f, 20f)))
+        vm.onAction(ScribbleAction.EndStroke)
+        testScheduler.advanceUntilIdle()
+
+        val saved = repo.getBoardStrokes("board_2")
+        assertEquals(1, saved.size)
+        assertEquals(2, saved.first().points.size)
+    }
+
+    @Test
+    fun clearCanvas_persistsEmptyStrokesToRepository() = runTest(testDispatcher) {
+        val repo = FakeBoardDraftRepository()
+        val vm = ScribbleViewModel(boardId = "board_3", boardDraftRepository = repo)
+
+        vm.onAction(ScribbleAction.StartStroke(Point(10f, 10f)))
+        vm.onAction(ScribbleAction.EndStroke)
+        testScheduler.advanceUntilIdle()
+        assertEquals(1, repo.getBoardStrokes("board_3").size)
+
+        vm.onAction(ScribbleAction.ConfirmClearCanvas)
+        testScheduler.advanceUntilIdle()
+        assertTrue(repo.getBoardStrokes("board_3").isEmpty())
+    }
+
+    @Test
+    fun differentBoardIds_keepSeparateDraftsInRepository() = runTest(testDispatcher) {
+        val repo = FakeBoardDraftRepository()
+        val magicVm = ScribbleViewModel(boardId = ScribbleViewModel.BOARD_MAGIC_DOODLE, boardDraftRepository = repo)
+        val stencilVm = ScribbleViewModel(boardId = ScribbleViewModel.stencilBoardId("cozy-house"), boardDraftRepository = repo)
+
+        magicVm.onAction(ScribbleAction.StartStroke(Point(10f, 10f)))
+        magicVm.onAction(ScribbleAction.EndStroke)
+
+        stencilVm.onAction(ScribbleAction.StartStroke(Point(50f, 50f)))
+        stencilVm.onAction(ScribbleAction.EndStroke)
+        testScheduler.advanceUntilIdle()
+
+        val magicStrokes = repo.getBoardStrokes(ScribbleViewModel.BOARD_MAGIC_DOODLE)
+        val stencilStrokes = repo.getBoardStrokes(ScribbleViewModel.stencilBoardId("cozy-house"))
+
+        assertEquals(1, magicStrokes.size)
+        assertEquals(1, stencilStrokes.size)
+        assertEquals(Point(10f, 10f), magicStrokes.first().points.first())
+        assertEquals(Point(50f, 50f), stencilStrokes.first().points.first())
+    }
+
+    private class FakeBoardDraftRepository : BoardDraftRepository {
+        val boards = mutableMapOf<String, List<Stroke>>()
+
+        override suspend fun getBoardStrokes(boardId: String): List<Stroke> {
+            return boards[boardId] ?: emptyList()
+        }
+
+        override suspend fun saveBoardStrokes(boardId: String, strokes: List<Stroke>) {
+            boards[boardId] = strokes
+        }
+
+        override suspend fun clearBoard(boardId: String) {
+            boards[boardId] = emptyList()
+        }
     }
 }

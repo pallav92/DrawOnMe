@@ -1,26 +1,48 @@
 package com.pallav.drawonme.presentation.scribble
 
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.viewModelScope
 import com.pallav.drawonme.domain.model.DrawingTool
 import com.pallav.drawonme.domain.model.Point
 import com.pallav.drawonme.domain.model.Stroke
 import com.pallav.drawonme.domain.model.StrokeColor
+import com.pallav.drawonme.domain.repository.BoardDraftRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
 
 /**
- * ViewModel managing the state machine for the scribble board.
- * Implements Unidirectional Data Flow (UDF) with atomic undo/redo history snapshots.
+ * ViewModel managing the state machine for an isolated scribble board.
+ * Implements Unidirectional Data Flow (UDF) with atomic undo/redo history snapshots,
+ * and automatically persists strokes to [BoardDraftRepository] keyed by [boardId].
+ *
+ * @param boardId Unique board identifier (e.g. "magic_doodle", "stencil_cozy-house").
+ * @param boardDraftRepository Optional repository for loading and saving board strokes.
  */
-class ScribbleViewModel : ViewModel() {
+class ScribbleViewModel(
+    val boardId: String = BOARD_MAGIC_DOODLE,
+    private val boardDraftRepository: BoardDraftRepository? = null
+) : ViewModel() {
 
     private val undoHistory: ArrayDeque<List<Stroke>> = ArrayDeque()
     private val redoHistory: ArrayDeque<List<Stroke>> = ArrayDeque()
 
     private val _uiState: MutableStateFlow<ScribbleUiState> = MutableStateFlow(ScribbleUiState())
     val uiState: StateFlow<ScribbleUiState> = _uiState.asStateFlow()
+
+    init {
+        if (boardDraftRepository != null) {
+            viewModelScope.launch {
+                val saved = boardDraftRepository.getBoardStrokes(boardId)
+                if (saved.isNotEmpty()) {
+                    _uiState.update { it.copy(strokes = saved) }
+                }
+            }
+        }
+    }
 
     fun onAction(action: ScribbleAction) {
         when (action) {
@@ -66,12 +88,6 @@ class ScribbleViewModel : ViewModel() {
         }
     }
 
-    private fun handleCancelStroke() {
-        if (_uiState.value.currentStroke != null) {
-            _uiState.update { it.copy(currentStroke = null) }
-        }
-    }
-
     private fun handleEndStroke() {
         val active = _uiState.value.currentStroke ?: return
         if (active.points.isEmpty()) {
@@ -90,6 +106,13 @@ class ScribbleViewModel : ViewModel() {
                 canUndo = true,
                 canRedo = false
             )
+        }
+        persistBoardStrokes(updatedStrokes)
+    }
+
+    private fun handleCancelStroke() {
+        if (_uiState.value.currentStroke != null) {
+            _uiState.update { it.copy(currentStroke = null) }
         }
     }
 
@@ -124,6 +147,7 @@ class ScribbleViewModel : ViewModel() {
                 canRedo = true
             )
         }
+        persistBoardStrokes(previousSnapshot)
     }
 
     private fun handleRedo() {
@@ -140,6 +164,7 @@ class ScribbleViewModel : ViewModel() {
                 canRedo = redoHistory.isNotEmpty()
             )
         }
+        persistBoardStrokes(nextSnapshot)
     }
 
     private fun handleRequestClear() {
@@ -162,6 +187,7 @@ class ScribbleViewModel : ViewModel() {
                 showClearDialog = false
             )
         }
+        persistBoardStrokes(emptyList())
     }
 
     private fun handleDismissClear() {
@@ -175,7 +201,29 @@ class ScribbleViewModel : ViewModel() {
         undoHistory.addLast(snapshot)
     }
 
+    private fun persistBoardStrokes(strokes: List<Stroke>) {
+        if (boardDraftRepository != null) {
+            viewModelScope.launch {
+                boardDraftRepository.saveBoardStrokes(boardId, strokes)
+            }
+        }
+    }
+
     companion object {
         private const val MAX_HISTORY_SIZE: Int = 50
+
+        const val BOARD_MAGIC_DOODLE: String = "magic_doodle"
+
+        fun stencilBoardId(stencilId: String): String = "stencil_$stencilId"
+
+        fun provideFactory(
+            boardId: String,
+            repository: BoardDraftRepository? = null
+        ): ViewModelProvider.Factory = object : ViewModelProvider.Factory {
+            @Suppress("UNCHECKED_CAST")
+            override fun <T : ViewModel> create(modelClass: Class<T>): T {
+                return ScribbleViewModel(boardId = boardId, boardDraftRepository = repository) as T
+            }
+        }
     }
 }

@@ -42,6 +42,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.pallav.drawonme.domain.model.SavedArtwork
 import com.pallav.drawonme.domain.repository.ArtworkRepository
+import com.pallav.drawonme.domain.repository.BoardDraftRepository
 import com.pallav.drawonme.presentation.scribble.components.DrawingToolbar
 import com.pallav.drawonme.presentation.scribble.components.ScribbleCanvas
 import com.pallav.drawonme.presentation.scribble.components.ZoomControlsHud
@@ -56,9 +57,14 @@ import kotlinx.coroutines.launch
 @Composable
 fun ScribbleScreen(
     modifier: Modifier = Modifier,
+    boardId: String = ScribbleViewModel.BOARD_MAGIC_DOODLE,
     onNavigateBack: (() -> Unit)? = null,
     artworkRepository: ArtworkRepository? = null,
-    viewModel: ScribbleViewModel = viewModel()
+    boardDraftRepository: BoardDraftRepository? = null,
+    viewModel: ScribbleViewModel = viewModel(
+        key = "scribble_vm_$boardId",
+        factory = ScribbleViewModel.provideFactory(boardId, boardDraftRepository)
+    )
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val coroutineScope = rememberCoroutineScope()
