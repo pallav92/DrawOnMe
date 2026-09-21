@@ -38,13 +38,13 @@ data class StrokeColor(
         val White: StrokeColor = StrokeColor(0xFFFFFFFF)
 
         val DefaultPalette: List<StrokeColor> = listOf(
-            Black,
-            Blue,
             Red,
+            Blue,
             Green,
+            Yellow,
             Orange,
             Purple,
-            Yellow
+            Black
         )
     }
 }

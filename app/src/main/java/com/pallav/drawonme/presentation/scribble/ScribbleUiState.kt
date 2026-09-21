@@ -14,7 +14,7 @@ data class ScribbleUiState(
     val strokes: List<Stroke> = emptyList(),
     val currentStroke: Stroke? = null,
     val selectedTool: DrawingTool = DrawingTool.PEN,
-    val selectedColor: StrokeColor = StrokeColor.Black,
+    val selectedColor: StrokeColor = StrokeColor.Red,
     val strokeWidth: Float = 6f,
     val canUndo: Boolean = false,
     val canRedo: Boolean = false,

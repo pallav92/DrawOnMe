@@ -44,7 +44,7 @@ class ScribbleViewModelTest {
         assertTrue(state.strokes.isEmpty())
         assertNull(state.currentStroke)
         assertEquals(DrawingTool.PEN, state.selectedTool)
-        assertEquals(StrokeColor.Black, state.selectedColor)
+        assertEquals(StrokeColor.Red, state.selectedColor)
         assertEquals(6f, state.strokeWidth)
         assertFalse(state.canUndo)
         assertFalse(state.canRedo)
