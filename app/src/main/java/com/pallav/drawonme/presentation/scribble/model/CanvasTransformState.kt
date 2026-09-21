@@ -110,6 +110,15 @@ class CanvasTransformState(
     }
 
     /**
+     * Programmatically sets the pan offset and zoom level.
+     * Used for adapting canvas views (e.g. centering and scaling stencils to fit orientation changes).
+     */
+    fun setTransform(newPan: Offset, newZoom: Float) {
+        zoom = newZoom.coerceIn(MIN_ZOOM, MAX_ZOOM)
+        pan = newPan
+    }
+
+    /**
      * Clamps the pan offset so that the visible viewport stays within the 5x device window workspace.
      * Workspace bounds: [-2W, -2H] to [+3W, +3H] in world coordinates.
      */

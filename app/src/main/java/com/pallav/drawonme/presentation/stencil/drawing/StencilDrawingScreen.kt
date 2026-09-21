@@ -7,9 +7,12 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.ui.unit.IntSize
+import kotlin.math.roundToInt
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
@@ -41,7 +44,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import com.pallav.drawonme.presentation.scribble.model.CanvasTransformState
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.StrokeCap
@@ -111,21 +116,52 @@ fun StencilDrawingScreen(
         }
     }
 
-    Box(
+    BoxWithConstraints(
         modifier = modifier.fillMaxSize()
     ) {
+        val width = constraints.maxWidth.toFloat()
+        val height = constraints.maxHeight.toFloat()
+        val isLandscape = width > height
+
+        val scale = if (isLandscape) height * 0.76f else minOf(width, height) * 0.92f
+        val offsetX = (width - scale) / 2f
+        val offsetY = (height - scale) / 2f
+        val targetZoom = if (scale > 0f) scale / STENCIL_CANVAS_SIZE else 1.0f
+        val targetPan = Offset(offsetX, offsetY)
+
+        val transformState = remember {
+            CanvasTransformState(
+                initialZoom = targetZoom,
+                initialPan = targetPan
+            ).apply {
+                viewportSize = IntSize(width.roundToInt(), height.roundToInt())
+            }
+        }
+
+        val lastSizeRef = remember { object { var size = IntSize.Zero } }
+        val currentSize = IntSize(width.roundToInt(), height.roundToInt())
+        if (width > 0f && height > 0f && currentSize != lastSizeRef.size) {
+            lastSizeRef.size = currentSize
+            transformState.setTransform(targetPan, targetZoom)
+            transformState.viewportSize = currentSize
+        }
+
         // Drawing canvas with background stencil guide
         ScribbleCanvas(
             uiState = uiState,
             onAction = viewModel::onAction,
             modifier = Modifier.fillMaxSize(),
+            transformState = transformState,
+            showBoundary = false,
+            isPanZoomEnabled = true,
             backgroundContent = {
                 if (isGuideVisible && stencil != null) {
                     Canvas(modifier = Modifier.fillMaxSize()) {
                         drawStencilGuide(
                             stencil = stencil,
                             opacity = guideOpacity,
-                            guideColor = Color(0xFF7E57C2)
+                            guideColor = Color(0xFF7E57C2),
+                            canvasSize = STENCIL_CANVAS_SIZE
                         )
                     }
                 }
@@ -303,21 +339,14 @@ fun StencilDrawingScreen(
     }
 }
 
+const val STENCIL_CANVAS_SIZE: Float = 1000f
+
 private fun DrawScope.drawStencilGuide(
     stencil: Stencil,
     opacity: Float,
-    guideColor: Color
+    guideColor: Color,
+    canvasSize: Float = STENCIL_CANVAS_SIZE
 ) {
-    val width = size.width
-    val height = size.height
-    val isLandscape = width > height
-
-    // In portrait, scale to 92% of width to boldly fill canvas, offset slightly up
-    // In landscape, scale to 76% of height to comfortably fill vertical space now that top bar is minimal
-    val scale = if (isLandscape) height * 0.76f else minOf(width, height) * 0.92f
-    val offsetX = (width - scale) / 2f
-    val offsetY = (height - scale) / 2f
-
     val strokeColor = guideColor.copy(alpha = opacity)
     val dashEffect = PathEffect.dashPathEffect(floatArrayOf(14f, 10f), 0f)
 
@@ -326,11 +355,11 @@ private fun DrawScope.drawStencilGuide(
 
         val path = Path()
         val first = stencilPath.points[0]
-        path.moveTo(offsetX + first.x * scale, offsetY + first.y * scale)
+        path.moveTo(first.x * canvasSize, first.y * canvasSize)
 
         for (i in 1 until stencilPath.points.size) {
             val pt = stencilPath.points[i]
-            path.lineTo(offsetX + pt.x * scale, offsetY + pt.y * scale)
+            path.lineTo(pt.x * canvasSize, pt.y * canvasSize)
         }
 
         if (stencilPath.isClosed) {
@@ -341,7 +370,7 @@ private fun DrawScope.drawStencilGuide(
             path = path,
             color = strokeColor,
             style = androidx.compose.ui.graphics.drawscope.Stroke(
-                width = 2.5.dp.toPx(),
+                width = 3.dp.toPx(),
                 cap = StrokeCap.Round,
                 join = StrokeJoin.Round,
                 pathEffect = dashEffect

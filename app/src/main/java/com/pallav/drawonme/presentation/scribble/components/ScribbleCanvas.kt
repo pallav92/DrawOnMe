@@ -55,6 +55,8 @@ fun ScribbleCanvas(
     onAction: (ScribbleAction) -> Unit,
     modifier: Modifier = Modifier,
     transformState: CanvasTransformState = rememberCanvasTransformState(),
+    showBoundary: Boolean = true,
+    isPanZoomEnabled: Boolean = true,
     backgroundContent: (@Composable () -> Unit)? = null
 ) {
     val backgroundColor = MaterialTheme.colorScheme.surface
@@ -125,23 +127,25 @@ fun ScribbleCanvas(
             }
 
             // 5x canvas workspace boundary
-            val width = size.width
-            val height = size.height
-            if (width > 0f && height > 0f) {
-                val boundaryLeft = -2f * width * zoom + pan.x
-                val boundaryTop = -2f * height * zoom + pan.y
-                val boundaryWidth = 5f * width * zoom
-                val boundaryHeight = 5f * height * zoom
+            if (showBoundary) {
+                val width = size.width
+                val height = size.height
+                if (width > 0f && height > 0f) {
+                    val boundaryLeft = -2f * width * zoom + pan.x
+                    val boundaryTop = -2f * height * zoom + pan.y
+                    val boundaryWidth = 5f * width * zoom
+                    val boundaryHeight = 5f * height * zoom
 
-                drawRect(
-                    color = boundaryColor,
-                    topLeft = Offset(boundaryLeft, boundaryTop),
-                    size = Size(boundaryWidth, boundaryHeight),
-                    style = androidx.compose.ui.graphics.drawscope.Stroke(
-                        width = 2.dp.toPx(),
-                        pathEffect = PathEffect.dashPathEffect(floatArrayOf(12f, 12f))
+                    drawRect(
+                        color = boundaryColor,
+                        topLeft = Offset(boundaryLeft, boundaryTop),
+                        size = Size(boundaryWidth, boundaryHeight),
+                        style = androidx.compose.ui.graphics.drawscope.Stroke(
+                            width = 2.dp.toPx(),
+                            pathEffect = PathEffect.dashPathEffect(floatArrayOf(12f, 12f))
+                        )
                     )
-                )
+                }
             }
         }
 
@@ -167,13 +171,14 @@ fun ScribbleCanvas(
             modifier = Modifier
                 .fillMaxSize()
                 .graphicsLayer(compositingStrategy = CompositingStrategy.Offscreen)
-                .pointerInput(uiState.selectedTool) {
+                .pointerInput(uiState.selectedTool, isPanZoomEnabled, transformState) {
                     awaitEachGesture {
                         val down = awaitFirstDown(requireUnconsumed = false)
                         val initialTool = uiState.selectedTool
 
                         when (initialTool) {
                             DrawingTool.HAND -> {
+                                if (!isPanZoomEnabled) return@awaitEachGesture
                                 // Hand tool: 1 or 2 fingers pan/zoom
                                 down.consume()
                                 var prevCentroid = down.position
@@ -212,7 +217,7 @@ fun ScribbleCanvas(
 
                             DrawingTool.ERASER -> {
                                 val initialPointers = currentEvent.changes.filter { it.pressed }
-                                var isTwoFingerMode = initialPointers.size >= 2
+                                var isTwoFingerMode = isPanZoomEnabled && initialPointers.size >= 2
                                 var isStrokeActive = false
 
                                 if (!isTwoFingerMode) {
@@ -249,7 +254,7 @@ fun ScribbleCanvas(
                                         break
                                     }
 
-                                    if (!isTwoFingerMode && pressedPointers.size >= 2) {
+                                    if (isPanZoomEnabled && !isTwoFingerMode && pressedPointers.size >= 2) {
                                         // Second finger arrived! Cancel in-progress stroke and switch to universal pan/zoom
                                         if (isStrokeActive) {
                                             onAction(ScribbleAction.CancelStroke)
@@ -306,7 +311,7 @@ fun ScribbleCanvas(
 
                             DrawingTool.PEN -> {
                                 val initialPointers = currentEvent.changes.filter { it.pressed }
-                                var isTwoFingerMode = initialPointers.size >= 2
+                                var isTwoFingerMode = isPanZoomEnabled && initialPointers.size >= 2
                                 var isStrokeActive = false
 
                                 if (!isTwoFingerMode) {
@@ -330,7 +335,7 @@ fun ScribbleCanvas(
                                         break
                                     }
 
-                                    if (!isTwoFingerMode && pressedPointers.size >= 2) {
+                                    if (isPanZoomEnabled && !isTwoFingerMode && pressedPointers.size >= 2) {
                                         // Second finger arrived! Cancel in-progress stroke and switch to pan/zoom
                                         if (isStrokeActive) {
                                             onAction(ScribbleAction.CancelStroke)

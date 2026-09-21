@@ -113,4 +113,16 @@ class CanvasTransformStateTest {
         assertEquals(transformState.pan.x, restored.pan.x, 0.001f)
         assertEquals(transformState.pan.y, restored.pan.y, 0.001f)
     }
+
+    @Test
+    fun setTransform_updatesPanAndZoomCorrectly() {
+        val targetPan = Offset(789.6f, 129.6f)
+        val targetZoom = 0.8208f
+
+        transformState.setTransform(targetPan, targetZoom)
+
+        assertEquals(targetZoom, transformState.zoom, 0.0001f)
+        assertEquals(targetPan.x, transformState.pan.x, 0.0001f)
+        assertEquals(targetPan.y, transformState.pan.y, 0.0001f)
+    }
 }
