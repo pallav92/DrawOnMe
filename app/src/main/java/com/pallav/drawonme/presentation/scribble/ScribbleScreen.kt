@@ -232,50 +232,23 @@ fun ScribbleScreenContent(
             }
         }
 
-        if (isLandscape) {
-            // Zoom controls HUD tucked neatly in top-left under the minimal top bar pill
-            Box(
-                modifier = Modifier
-                    .align(Alignment.TopStart)
-                    .statusBarsPadding()
-                    .padding(start = 16.dp, top = 68.dp)
-            ) {
-                ZoomControlsHud(transformState = transformState)
-            }
-
-            // Compact collapsible toolbar anchored at bottom
-            CollapsibleDrawingToolbar(
-                uiState = uiState,
-                onAction = onAction,
-                maxEraserSize = maxEraserSize,
-                modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    .navigationBarsPadding()
-            )
-        } else {
-            // Floating bottom controls: Zoom HUD & Collapsible Drawing toolbar stacked vertically in portrait
-            Column(
-                modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    .navigationBarsPadding(),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 20.dp, vertical = 4.dp),
-                    horizontalArrangement = Arrangement.Start
-                ) {
-                    ZoomControlsHud(transformState = transformState)
-                }
-
-                CollapsibleDrawingToolbar(
-                    uiState = uiState,
-                    onAction = onAction,
-                    maxEraserSize = maxEraserSize
-                )
-            }
+        // Zoom controls HUD tucked neatly in top-left under the minimal top bar pill
+        Box(
+            modifier = Modifier
+                .align(Alignment.TopStart)
+                .statusBarsPadding()
+                .padding(start = 16.dp, top = 68.dp)
+        ) {
+            ZoomControlsHud(transformState = transformState)
         }
+
+        // Movable collapsible drawing toolbar: free 2D movement, border snapping
+        CollapsibleDrawingToolbar(
+            uiState = uiState,
+            onAction = onAction,
+            maxEraserSize = maxEraserSize,
+            modifier = Modifier.fillMaxSize()
+        )
 
         // Clear confirmation dialog
         if (uiState.showClearDialog) {
