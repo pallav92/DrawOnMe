@@ -22,5 +22,29 @@ data class SavedArtwork(
 ) {
     companion object {
         val DefaultMagnets: List<String> = listOf("⭐️", "🍎", "🚀", "🌸", "🍌", "🌈", "🐱", "🎈")
+
+        /**
+         * Creates a [SavedArtwork] with strokes cropped tightly to their visible bounding box.
+         * Normalizes stroke coordinates to origin (0, 0) plus padding, eliminating dead canvas space.
+         */
+        fun createCropped(
+            title: String,
+            strokes: List<Stroke>,
+            stencilId: String? = null,
+            id: String = UUID.randomUUID().toString(),
+            createdAt: Long = System.currentTimeMillis(),
+            magnetEmoji: String = DefaultMagnets.random(),
+            padding: Float = ArtworkCropper.DEFAULT_PADDING
+        ): SavedArtwork {
+            val cropped = ArtworkCropper.cropStrokes(strokes, padding)
+            return SavedArtwork(
+                id = id,
+                title = title,
+                createdAt = createdAt,
+                strokes = if (cropped.isNotEmpty()) cropped else strokes,
+                stencilId = stencilId,
+                magnetEmoji = magnetEmoji
+            )
+        }
     }
 }
