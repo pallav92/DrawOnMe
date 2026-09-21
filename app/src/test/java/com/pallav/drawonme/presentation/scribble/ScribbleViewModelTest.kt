@@ -171,4 +171,36 @@ class ScribbleViewModelTest {
         viewModel.onAction(ScribbleAction.DismissClearCanvas)
         assertFalse(viewModel.uiState.value.showClearDialog)
     }
+
+    @Test
+    fun cancelStroke_clearsCurrentStrokeWithoutAddingToHistory() {
+        viewModel.onAction(ScribbleAction.StartStroke(Point(10f, 10f)))
+        viewModel.onAction(ScribbleAction.AddPoint(Point(20f, 20f)))
+        assertNotNull(viewModel.uiState.value.currentStroke)
+
+        viewModel.onAction(ScribbleAction.CancelStroke)
+        assertNull(viewModel.uiState.value.currentStroke)
+        assertTrue(viewModel.uiState.value.strokes.isEmpty())
+        assertFalse(viewModel.uiState.value.canUndo)
+    }
+
+    @Test
+    fun handToolSelection_updatesStateAndColorSelectionSwitchesBackToPen() {
+        viewModel.onAction(ScribbleAction.SelectTool(DrawingTool.HAND))
+        assertEquals(DrawingTool.HAND, viewModel.uiState.value.selectedTool)
+
+        viewModel.onAction(ScribbleAction.SelectColor(StrokeColor.Green))
+        assertEquals(StrokeColor.Green, viewModel.uiState.value.selectedColor)
+        assertEquals(DrawingTool.PEN, viewModel.uiState.value.selectedTool)
+    }
+
+    @Test
+    fun dynamicEraserWidth_canBeSetToViewportScale() {
+        viewModel.onAction(ScribbleAction.SelectTool(DrawingTool.ERASER))
+        viewModel.onAction(ScribbleAction.SetStrokeWidth(360f))
+        assertEquals(360f, viewModel.uiState.value.strokeWidth)
+
+        viewModel.onAction(ScribbleAction.SetStrokeWidth(40f))
+        assertEquals(40f, viewModel.uiState.value.strokeWidth)
+    }
 }

@@ -12,6 +12,7 @@ sealed interface ScribbleAction {
     data class StartStroke(val point: Point) : ScribbleAction
     data class AddPoint(val point: Point) : ScribbleAction
     data object EndStroke : ScribbleAction
+    data object CancelStroke : ScribbleAction
     data class SelectTool(val tool: DrawingTool) : ScribbleAction
     data class SelectColor(val color: StrokeColor) : ScribbleAction
     data class SetStrokeWidth(val width: Float) : ScribbleAction

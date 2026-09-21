@@ -16,7 +16,8 @@ data class Point(
  */
 enum class DrawingTool {
     PEN,
-    ERASER
+    ERASER,
+    HAND
 }
 
 /**

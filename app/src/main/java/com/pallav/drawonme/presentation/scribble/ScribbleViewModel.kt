@@ -27,6 +27,7 @@ class ScribbleViewModel : ViewModel() {
             is ScribbleAction.StartStroke -> handleStartStroke(action.point)
             is ScribbleAction.AddPoint -> handleAddPoint(action.point)
             is ScribbleAction.EndStroke -> handleEndStroke()
+            is ScribbleAction.CancelStroke -> handleCancelStroke()
             is ScribbleAction.SelectTool -> handleSelectTool(action.tool)
             is ScribbleAction.SelectColor -> handleSelectColor(action.color)
             is ScribbleAction.SetStrokeWidth -> handleSetStrokeWidth(action.width)
@@ -62,6 +63,12 @@ class ScribbleViewModel : ViewModel() {
         }
         _uiState.update {
             it.copy(currentStroke = active.copy(points = active.points + point))
+        }
+    }
+
+    private fun handleCancelStroke() {
+        if (_uiState.value.currentStroke != null) {
+            _uiState.update { it.copy(currentStroke = null) }
         }
     }
 

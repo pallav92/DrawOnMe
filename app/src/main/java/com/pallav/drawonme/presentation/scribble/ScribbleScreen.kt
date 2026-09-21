@@ -4,10 +4,13 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -41,6 +44,9 @@ import com.pallav.drawonme.domain.model.SavedArtwork
 import com.pallav.drawonme.domain.repository.ArtworkRepository
 import com.pallav.drawonme.presentation.scribble.components.DrawingToolbar
 import com.pallav.drawonme.presentation.scribble.components.ScribbleCanvas
+import com.pallav.drawonme.presentation.scribble.components.ZoomControlsHud
+import com.pallav.drawonme.presentation.scribble.model.CanvasTransformState
+import com.pallav.drawonme.presentation.scribble.model.rememberCanvasTransformState
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -95,6 +101,7 @@ fun ScribbleScreenContent(
     uiState: ScribbleUiState,
     onAction: (ScribbleAction) -> Unit,
     modifier: Modifier = Modifier,
+    transformState: CanvasTransformState = rememberCanvasTransformState(),
     onNavigateBack: (() -> Unit)? = null,
     onPinToFridge: (() -> Unit)? = null,
     showPinnedToast: Boolean = false
@@ -102,10 +109,11 @@ fun ScribbleScreenContent(
     Box(
         modifier = modifier.fillMaxSize()
     ) {
-        // Fullscreen drawing canvas
+        // Fullscreen drawing canvas with pan, zoom, and Excalidraw dot grid
         ScribbleCanvas(
             uiState = uiState,
-            onAction = onAction
+            onAction = onAction,
+            transformState = transformState
         )
 
         // Top back button if navigation is enabled
@@ -166,14 +174,36 @@ fun ScribbleScreenContent(
             }
         }
 
-        // Floating drawing toolbar anchored to the bottom
-        DrawingToolbar(
-            uiState = uiState,
-            onAction = onAction,
+        // Floating bottom controls: Zoom HUD & Drawing toolbar
+        Column(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
-                .navigationBarsPadding()
-        )
+                .navigationBarsPadding(),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp, vertical = 6.dp),
+                horizontalArrangement = Arrangement.Start
+            ) {
+                ZoomControlsHud(transformState = transformState)
+            }
+
+            val maxEraserSize = remember(transformState.viewportSize) {
+                if (transformState.viewportSize.width > 0 && transformState.viewportSize.height > 0) {
+                    minOf(transformState.viewportSize.width.toFloat(), transformState.viewportSize.height.toFloat()) / 3f
+                } else {
+                    360f
+                }
+            }
+
+            DrawingToolbar(
+                uiState = uiState,
+                onAction = onAction,
+                maxEraserSize = maxEraserSize
+            )
+        }
 
         // Clear confirmation dialog
         if (uiState.showClearDialog) {
