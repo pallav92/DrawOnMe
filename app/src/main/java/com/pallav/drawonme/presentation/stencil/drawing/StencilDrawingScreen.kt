@@ -99,7 +99,7 @@ fun StencilDrawingScreen(
     val coroutineScope = rememberCoroutineScope()
 
     var isGuideVisible by remember { mutableStateOf(true) }
-    val guideOpacity by remember { mutableFloatStateOf(0.65f) }
+    val guideOpacity by remember { mutableFloatStateOf(0.38f) }
     var showCelebration by remember { mutableStateOf(false) }
     var showPinnedToast by remember { mutableStateOf(false) }
 
@@ -124,7 +124,7 @@ fun StencilDrawingScreen(
                         drawStencilGuide(
                             stencil = stencil,
                             opacity = guideOpacity,
-                            guideColor = Color(0xFF4A148C)
+                            guideColor = Color(0xFF7E57C2)
                         )
                     }
                 }
@@ -308,7 +308,7 @@ private fun DrawScope.drawStencilGuide(
             path = path,
             color = strokeColor,
             style = androidx.compose.ui.graphics.drawscope.Stroke(
-                width = 3.5.dp.toPx(),
+                width = 2.5.dp.toPx(),
                 cap = StrokeCap.Round,
                 join = StrokeJoin.Round,
                 pathEffect = dashEffect
