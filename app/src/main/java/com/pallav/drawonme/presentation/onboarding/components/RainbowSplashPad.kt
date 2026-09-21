@@ -3,6 +3,7 @@ package com.pallav.drawonme.presentation.onboarding.components
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.layout.Arrangement
@@ -15,15 +16,18 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.withFrameMillis
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -32,32 +36,74 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
-import androidx.compose.ui.graphics.StrokeJoin
-import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.input.pointer.PointerId
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import kotlin.random.Random
 
-private data class RainbowStroke(
-    val points: List<Offset>,
-    val color: Color,
-    val strokeWidth: Float
+private data class GlowingRainbowPoint(
+    val position: Offset,
+    val hue: Float
+)
+
+private data class GlowingRainbowStroke(
+    val points: List<GlowingRainbowPoint>
+)
+
+private data class SparkleParticle(
+    val position: Offset,
+    val velocity: Offset,
+    val hue: Float,
+    val size: Float,
+    val alpha: Float = 1.0f,
+    val rotation: Float = 0f,
+    val life: Float = 1.0f
 )
 
 /**
- * Interactive tactile rainbow splash pad embedded on the onboarding screen.
- * Teaches children in under 2 seconds that touching the screen creates colorful art.
+ * Interactive tactile rainbow splash pad ("magic board") embedded on the onboarding screen.
+ * Features a multi-layer luminous neon glow, continuous rainbow hue progression along drawn paths,
+ * an active comet head, and drifting magical sparkle stars.
  */
 @Composable
 fun RainbowSplashPad(
     modifier: Modifier = Modifier,
     height: Dp = 190.dp
 ) {
-    val strokes = remember { mutableStateListOf<RainbowStroke>() }
+    val strokes = remember { mutableStateListOf<GlowingRainbowStroke>() }
+    val activeTouches = remember { mutableStateMapOf<PointerId, GlowingRainbowPoint>() }
+    var particles by remember { mutableStateOf(listOf<SparkleParticle>()) }
     var hasInteracted by remember { mutableStateOf(false) }
     var currentHue by remember { mutableFloatStateOf(0f) }
+
+    // Particle animation frame loop
+    LaunchedEffect(particles.isNotEmpty()) {
+        if (particles.isNotEmpty()) {
+            var lastTime = withFrameMillis { it }
+            while (particles.isNotEmpty()) {
+                val currentTime = withFrameMillis { it }
+                val dt = (currentTime - lastTime).coerceIn(1L, 32L) / 1000f
+                lastTime = currentTime
+
+                particles = particles.mapNotNull { p ->
+                    val newLife = p.life - dt * 2.2f
+                    if (newLife <= 0f) null
+                    else {
+                        p.copy(
+                            position = p.position + p.velocity * dt,
+                            alpha = newLife.coerceIn(0f, 1f),
+                            rotation = (p.rotation + dt * 180f) % 360f,
+                            life = newLife
+                        )
+                    }
+                }
+            }
+        }
+    }
 
     val rainbowBorder = remember {
         Brush.linearGradient(
@@ -72,12 +118,21 @@ fun RainbowSplashPad(
         )
     }
 
+    val slateBackground = remember {
+        Brush.verticalGradient(
+            colors = listOf(
+                Color(0xFF161828),
+                Color(0xFF0F111C)
+            )
+        )
+    }
+
     Box(
         modifier = modifier
             .fillMaxWidth()
             .height(height)
             .clip(RoundedCornerShape(24.dp))
-            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f))
+            .background(slateBackground)
             .border(2.5.dp, rainbowBorder, RoundedCornerShape(24.dp))
             .pointerInput(Unit) {
                 awaitEachGesture {
@@ -85,64 +140,162 @@ fun RainbowSplashPad(
                     down.consume()
                     hasInteracted = true
 
-                    val strokeColor = Color.hsl(currentHue % 360f, 0.85f, 0.50f)
-                    currentHue = (currentHue + 32f) % 360f
+                    val activeStrokeIndices = mutableMapOf<PointerId, Int>()
+                    val startHue = currentHue
+                    currentHue = (currentHue + 28f) % 360f
 
-                    val currentPoints = mutableListOf(down.position)
-                    val activeStroke = RainbowStroke(
-                        points = currentPoints.toList(),
-                        color = strokeColor,
-                        strokeWidth = 14f
-                    )
-                    strokes.add(activeStroke)
-                    val activeIndex = strokes.lastIndex
+                    val firstPoint = GlowingRainbowPoint(down.position, startHue)
+                    strokes.add(GlowingRainbowStroke(listOf(firstPoint)))
+                    activeStrokeIndices[down.id] = strokes.lastIndex
+                    activeTouches[down.id] = firstPoint
 
-                    val pointerId = down.id
                     while (true) {
                         val event = awaitPointerEvent()
-                        val change = event.changes.firstOrNull { it.id == pointerId } ?: break
-                        if (!change.pressed) {
-                            change.consume()
-                            break
+                        val anyPressed = event.changes.any { it.pressed }
+                        if (!anyPressed) break
+
+                        for (change in event.changes) {
+                            val pointerId = change.id
+                            if (change.pressed) {
+                                change.consume()
+
+                                val strokeIndex = activeStrokeIndices[pointerId]
+                                if (strokeIndex != null && strokeIndex < strokes.size) {
+                                    val currentStroke = strokes[strokeIndex]
+                                    val prevPoint = currentStroke.points.lastOrNull()
+                                    val distance = if (prevPoint != null) {
+                                        (change.position - prevPoint.position).getDistance()
+                                    } else 0f
+
+                                    if (prevPoint == null || distance >= 3f) {
+                                        val newHue = if (prevPoint != null) {
+                                            (prevPoint.hue + distance * 0.35f) % 360f
+                                        } else currentHue
+
+                                        val newPoint = GlowingRainbowPoint(change.position, newHue)
+                                        strokes[strokeIndex] = GlowingRainbowStroke(currentStroke.points + newPoint)
+                                        activeTouches[pointerId] = newPoint
+
+                                        // Spawn sparkle particles along the tail
+                                        if (distance >= 7f && particles.size < 35) {
+                                            val newSparkles = (0..1).map {
+                                                val angle = Random.nextFloat() * 2f * Math.PI.toFloat()
+                                                val speed = Random.nextFloat() * 50f + 15f
+                                                SparkleParticle(
+                                                    position = change.position + Offset(
+                                                        (Random.nextFloat() - 0.5f) * 12f,
+                                                        (Random.nextFloat() - 0.5f) * 12f
+                                                    ),
+                                                    velocity = Offset(
+                                                        kotlin.math.cos(angle) * speed,
+                                                        kotlin.math.sin(angle) * speed
+                                                    ),
+                                                    hue = (newHue + Random.nextFloat() * 40f - 20f + 360f) % 360f,
+                                                    size = Random.nextFloat() * 4f + 3.5f,
+                                                    rotation = Random.nextFloat() * 360f
+                                                )
+                                            }
+                                            particles = particles + newSparkles
+                                        }
+                                    }
+                                } else {
+                                    // Additional simultaneous touch
+                                    val newFingerHue = currentHue
+                                    currentHue = (currentHue + 32f) % 360f
+                                    val newPt = GlowingRainbowPoint(change.position, newFingerHue)
+                                    strokes.add(GlowingRainbowStroke(listOf(newPt)))
+                                    activeStrokeIndices[pointerId] = strokes.lastIndex
+                                    activeTouches[pointerId] = newPt
+                                }
+                            } else {
+                                activeTouches.remove(pointerId)
+                            }
                         }
-                        change.consume()
-                        currentPoints.add(change.position)
-                        strokes[activeIndex] = activeStroke.copy(points = currentPoints.toList())
                     }
+
+                    activeTouches.clear()
                 }
             },
         contentAlignment = Alignment.Center
     ) {
         Canvas(modifier = Modifier.fillMaxSize()) {
+            // 1. Draw multi-layered glowing rainbow strokes
             for (stroke in strokes) {
-                if (stroke.points.size == 1) {
-                    drawCircle(
-                        color = stroke.color,
-                        radius = stroke.strokeWidth / 2f,
-                        center = stroke.points[0]
-                    )
-                } else if (stroke.points.size > 1) {
-                    val path = Path()
-                    path.moveTo(stroke.points[0].x, stroke.points[0].y)
-                    for (i in 1 until stroke.points.size) {
-                        val prev = stroke.points[i - 1]
-                        val curr = stroke.points[i]
-                        val midX = (prev.x + curr.x) / 2f
-                        val midY = (prev.y + curr.y) / 2f
-                        path.quadraticTo(prev.x, prev.y, midX, midY)
-                    }
-                    path.lineTo(stroke.points.last().x, stroke.points.last().y)
+                if (stroke.points.isEmpty()) continue
 
-                    drawPath(
-                        path = path,
-                        color = stroke.color,
-                        style = Stroke(
-                            width = stroke.strokeWidth,
-                            cap = StrokeCap.Round,
-                            join = StrokeJoin.Round
-                        )
+                if (stroke.points.size == 1) {
+                    val pt = stroke.points[0]
+                    val color = Color.hsl(pt.hue, 1.0f, 0.55f)
+                    drawCircle(color = color.copy(alpha = 0.22f), radius = 14f, center = pt.position)
+                    drawCircle(color = color.copy(alpha = 0.55f), radius = 8f, center = pt.position)
+                    drawCircle(color = color, radius = 4.5f, center = pt.position)
+                    drawCircle(color = Color.White.copy(alpha = 0.9f), radius = 2f, center = pt.position)
+                    continue
+                }
+
+                for (i in 1 until stroke.points.size) {
+                    val pPrev = stroke.points[i - 1]
+                    val pCurr = stroke.points[i]
+                    val segHue = pCurr.hue
+                    val segColor = Color.hsl(segHue, 1.0f, 0.55f)
+
+                    // Layer 1: Outer soft ambient glow
+                    drawLine(
+                        color = segColor.copy(alpha = 0.22f),
+                        start = pPrev.position,
+                        end = pCurr.position,
+                        strokeWidth = 26f,
+                        cap = StrokeCap.Round
+                    )
+                    // Layer 2: Vivid inner neon aura
+                    drawLine(
+                        color = segColor.copy(alpha = 0.55f),
+                        start = pPrev.position,
+                        end = pCurr.position,
+                        strokeWidth = 15f,
+                        cap = StrokeCap.Round
+                    )
+                    // Layer 3: Saturated vibrant core
+                    drawLine(
+                        color = segColor.copy(alpha = 0.95f),
+                        start = pPrev.position,
+                        end = pCurr.position,
+                        strokeWidth = 8.5f,
+                        cap = StrokeCap.Round
+                    )
+                    // Layer 4: White-hot laser center
+                    drawLine(
+                        color = Color.White.copy(alpha = 0.85f),
+                        start = pPrev.position,
+                        end = pCurr.position,
+                        strokeWidth = 3f,
+                        cap = StrokeCap.Round
                     )
                 }
+            }
+
+            // 2. Draw glowing comet heads at active touch points
+            for ((_, activePt) in activeTouches) {
+                val orbColor = Color.hsl(activePt.hue, 1.0f, 0.60f)
+                drawCircle(color = orbColor.copy(alpha = 0.35f), radius = 22f, center = activePt.position)
+                drawCircle(color = orbColor.copy(alpha = 0.75f), radius = 12f, center = activePt.position)
+                drawCircle(color = Color.White.copy(alpha = 0.95f), radius = 5f, center = activePt.position)
+            }
+
+            // 3. Draw magical floating sparkle particles
+            for (particle in particles) {
+                val pColor = Color.hsl(particle.hue, 1.0f, 0.65f).copy(alpha = particle.alpha)
+                drawSparkleStar(
+                    center = particle.position,
+                    radius = particle.size * particle.alpha,
+                    color = pColor,
+                    rotation = particle.rotation
+                )
+                drawCircle(
+                    color = Color.White.copy(alpha = particle.alpha * 0.9f),
+                    radius = particle.size * 0.35f * particle.alpha,
+                    center = particle.position
+                )
             }
         }
 
@@ -163,36 +316,64 @@ fun RainbowSplashPad(
                     style = MaterialTheme.typography.titleMedium.copy(
                         fontWeight = FontWeight.Bold
                     ),
-                    color = MaterialTheme.colorScheme.primary
+                    color = Color(0xFFFFD54F) // Radiant warm gold
                 )
                 Spacer(modifier = Modifier.height(2.dp))
                 Text(
                     text = "Draw glowing rainbow trails with your fingers",
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
+                    color = Color(0xFFCE93D8) // Soft glowing lilac
                 )
             }
         }
 
         // Clear button to reset the pad for endless doodling
         if (strokes.isNotEmpty()) {
-            TextButton(
-                onClick = {
-                    strokes.clear()
-                    hasInteracted = false
-                },
+            Surface(
+                shape = RoundedCornerShape(14.dp),
+                color = Color.Black.copy(alpha = 0.55f),
                 modifier = Modifier
                     .align(Alignment.TopEnd)
-                    .padding(4.dp)
+                    .padding(8.dp)
+                    .clickable {
+                        strokes.clear()
+                        activeTouches.clear()
+                        particles = emptyList()
+                        hasInteracted = false
+                    }
             ) {
                 Text(
                     text = "Clear 🔄",
                     style = MaterialTheme.typography.labelSmall.copy(
                         fontWeight = FontWeight.Bold
                     ),
-                    color = MaterialTheme.colorScheme.primary
+                    color = Color(0xFFFF80AB),
+                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
                 )
             }
         }
     }
+}
+
+/**
+ * Draws a whimsical 4-pointed sparkle star centered at [center].
+ */
+private fun DrawScope.drawSparkleStar(
+    center: Offset,
+    radius: Float,
+    color: Color,
+    rotation: Float
+) {
+    if (radius <= 0.5f) return
+    val path = Path()
+    val innerRadius = radius * 0.28f
+    for (i in 0 until 8) {
+        val angle = Math.toRadians((i * 45.0 + rotation)).toFloat()
+        val r = if (i % 2 == 0) radius else innerRadius
+        val x = center.x + r * kotlin.math.cos(angle)
+        val y = center.y + r * kotlin.math.sin(angle)
+        if (i == 0) path.moveTo(x, y) else path.lineTo(x, y)
+    }
+    path.close()
+    drawPath(path = path, color = color)
 }
