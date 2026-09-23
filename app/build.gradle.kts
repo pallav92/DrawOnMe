@@ -3,10 +3,39 @@ plugins {
     alias(libs.plugins.kotlin.compose)
 }
 
+val keystorePropertiesFile = rootProject.file("keystore.properties")
+val keystoreProperties = mapOf<String, String>().toMutableMap().also { map ->
+    if (keystorePropertiesFile.exists()) {
+        keystorePropertiesFile.readLines().forEach { line ->
+            val trimmed = line.trim()
+            if (trimmed.isNotEmpty() && !trimmed.startsWith("#") && trimmed.contains("=")) {
+                val (key, value) = trimmed.split("=", limit = 2)
+                map[key.trim()] = value.trim()
+            }
+        }
+    }
+}
+
 android {
     namespace = "com.draw.onme"
     compileSdk {
         version = release(37)
+    }
+
+    if (keystorePropertiesFile.exists()) {
+        signingConfigs {
+            create("release") {
+                val storeFilePath = keystoreProperties["storeFile"] ?: ""
+                storeFile = if (file(storeFilePath).exists()) {
+                    file(storeFilePath)
+                } else {
+                    rootProject.file(storeFilePath)
+                }
+                storePassword = keystoreProperties["storePassword"] ?: ""
+                keyAlias = keystoreProperties["keyAlias"] ?: ""
+                keyPassword = keystoreProperties["keyPassword"] ?: ""
+            }
+        }
     }
 
     defaultConfig {
@@ -24,6 +53,9 @@ android {
         release {
             optimization {
                 enable = false
+            }
+            if (keystorePropertiesFile.exists()) {
+                signingConfig = signingConfigs.getByName("release")
             }
         }
     }
