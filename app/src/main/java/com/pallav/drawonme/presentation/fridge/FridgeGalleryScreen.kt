@@ -31,6 +31,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Print
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -39,9 +41,12 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.ui.platform.LocalContext
+import com.pallav.drawonme.presentation.fridge.export.ArtworkImageExporter
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -86,8 +91,9 @@ fun FridgeGalleryScreen(
     onStartNewDrawing: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val artworks by repository.observeArtworks().collectAsStateWithLifecycle(initialValue = emptyList())
+    val artworks by repository.observeArtworks().collectAsStateWithLifecycle()
     val coroutineScope = rememberCoroutineScope()
+    val context = LocalContext.current
 
     var artworkToDelete by remember { mutableStateOf<SavedArtwork?>(null) }
     var previewArtwork by remember { mutableStateOf<SavedArtwork?>(null) }
@@ -167,6 +173,11 @@ fun FridgeGalleryScreen(
                     PinnedArtworkCard(
                         artwork = artwork,
                         onClick = { previewArtwork = artwork },
+                        onShare = {
+                            coroutineScope.launch {
+                                ArtworkImageExporter.shareArtwork(context, artwork)
+                            }
+                        },
                         onDelete = { artworkToDelete = artwork }
                     )
                 }
@@ -259,48 +270,147 @@ fun FridgeGalleryScreen(
             )
         }
 
-        // Fullscreen preview dialog
+        // Fullscreen preview and share/print dialog
         previewArtwork?.let { target ->
-            AlertDialog(
-                onDismissRequest = { previewArtwork = null },
-                title = {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Text(target.title, fontWeight = FontWeight.Bold)
-                        Text(target.magnetEmoji, fontSize = 24.sp)
+            ArtworkShareDialog(
+                artwork = target,
+                onDismiss = { previewArtwork = null },
+                onShare = {
+                    coroutineScope.launch {
+                        ArtworkImageExporter.shareArtwork(context, target)
                     }
                 },
-                text = {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(if (isLandscape) 160.dp else 280.dp)
-                            .clip(RoundedCornerShape(16.dp))
-                            .background(Color.White)
-                    ) {
-                        ArtworkThumbnailCanvas(
-                            strokes = target.strokes,
-                            modifier = Modifier.fillMaxSize()
-                        )
-                    }
+                onPrint = {
+                    ArtworkImageExporter.printArtwork(context, target)
                 },
-                confirmButton = {
-                    Button(onClick = { previewArtwork = null }) {
-                        Text("Close")
-                    }
-                }
+                isLandscape = isLandscape
             )
         }
     }
 }
 
 @Composable
+private fun ArtworkShareDialog(
+    artwork: SavedArtwork,
+    onDismiss: () -> Unit,
+    onShare: () -> Unit,
+    onPrint: () -> Unit,
+    isLandscape: Boolean
+) {
+    val dateString = remember(artwork.createdAt) {
+        val formatter = SimpleDateFormat("MMMM d, yyyy", Locale.getDefault())
+        formatter.format(Date(artwork.createdAt))
+    }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = artwork.magnetEmoji,
+                    fontSize = 28.sp,
+                    modifier = Modifier.padding(end = 10.dp)
+                )
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = artwork.title,
+                        style = MaterialTheme.typography.titleLarge.copy(
+                            fontWeight = FontWeight.Bold
+                        ),
+                        maxLines = 1
+                    )
+                    Text(
+                        text = dateString,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+        },
+        text = {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .verticalScroll(rememberScrollState()),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                // High-resolution framed paper card
+                Surface(
+                    shape = RoundedCornerShape(16.dp),
+                    color = Color.White,
+                    shadowElevation = 3.dp,
+                    tonalElevation = 1.dp,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(if (isLandscape) 180.dp else 280.dp)
+                        .clip(RoundedCornerShape(16.dp))
+                ) {
+                    ArtworkThumbnailCanvas(
+                        strokes = artwork.strokes,
+                        modifier = Modifier.fillMaxSize()
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(14.dp))
+
+                Text(
+                    text = "Share this drawing as an image to social media or print a physical keepsake!",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                    modifier = Modifier.padding(horizontal = 8.dp)
+                )
+            }
+        },
+        confirmButton = {
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                OutlinedButton(
+                    onClick = onPrint,
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Print,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text("Print")
+                }
+
+                Button(
+                    onClick = onShare,
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Share,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text("Share")
+                }
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Close")
+            }
+        },
+        shape = RoundedCornerShape(24.dp)
+    )
+}
+
+@Composable
 private fun PinnedArtworkCard(
     artwork: SavedArtwork,
     onClick: () -> Unit,
+    onShare: () -> Unit,
     onDelete: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -392,16 +502,33 @@ private fun PinnedArtworkCard(
                         )
                     }
 
-                    IconButton(
-                        onClick = onDelete,
-                        modifier = Modifier.size(28.dp)
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
-                        Icon(
-                            imageVector = Icons.Default.Delete,
-                            contentDescription = "Remove Artwork",
-                            tint = Color.Gray,
-                            modifier = Modifier.size(18.dp)
-                        )
+                        IconButton(
+                            onClick = onShare,
+                            modifier = Modifier.size(28.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Share,
+                                contentDescription = "Share Artwork",
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
+
+                        IconButton(
+                            onClick = onDelete,
+                            modifier = Modifier.size(28.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Delete,
+                                contentDescription = "Remove Artwork",
+                                tint = Color.Gray,
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
                     }
                 }
             }

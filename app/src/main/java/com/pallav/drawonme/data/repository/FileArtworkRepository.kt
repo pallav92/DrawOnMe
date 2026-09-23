@@ -9,6 +9,7 @@ import com.pallav.drawonme.domain.repository.ArtworkRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.withContext
@@ -33,7 +34,7 @@ class FileArtworkRepository(
         loadAllFromDisk()
     }
 
-    override fun observeArtworks(): Flow<List<SavedArtwork>> {
+    override fun observeArtworks(): StateFlow<List<SavedArtwork>> {
         return _artworks.asStateFlow()
     }
 

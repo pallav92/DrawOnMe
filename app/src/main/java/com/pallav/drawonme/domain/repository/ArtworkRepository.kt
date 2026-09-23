@@ -1,7 +1,7 @@
 package com.pallav.drawonme.domain.repository
 
 import com.pallav.drawonme.domain.model.SavedArtwork
-import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.StateFlow
 
 /**
  * Domain repository interface for preserving and managing children's saved artworks.
@@ -11,7 +11,7 @@ interface ArtworkRepository {
     /**
      * Observes all saved artworks in reverse chronological order (newest first).
      */
-    fun observeArtworks(): Flow<List<SavedArtwork>>
+    fun observeArtworks(): StateFlow<List<SavedArtwork>>
 
     /**
      * Preserves an artwork to the child's collection.
