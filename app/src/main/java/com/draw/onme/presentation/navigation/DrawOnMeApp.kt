@@ -22,6 +22,12 @@ import com.draw.onme.presentation.stencil.drawing.StencilDrawingScreen
 import com.draw.onme.presentation.stencil.gallery.StencilGalleryScreen
 import java.io.File
 
+import androidx.compose.runtime.CompositionLocalProvider
+import com.draw.onme.data.analytics.FirebaseAnalyticsTracker
+import com.draw.onme.domain.analytics.AnalyticsTracker
+import com.draw.onme.presentation.analytics.LocalAnalyticsTracker
+import com.draw.onme.presentation.analytics.TrackScreenEngagement
+
 /**
  * Root composable hosting the app navigation stack between Onboarding,
  * Free Scribble notepad, Stencil Gallery, Stencil Drawing Studio, and My Fridge Door.
@@ -30,7 +36,8 @@ import java.io.File
 fun DrawOnMeApp(
     modifier: Modifier = Modifier,
     artworkRepository: ArtworkRepository? = null,
-    boardDraftRepository: BoardDraftRepository? = null
+    boardDraftRepository: BoardDraftRepository? = null,
+    analyticsTracker: AnalyticsTracker? = null
 ) {
     val context = LocalContext.current
     val repository: ArtworkRepository = remember {
@@ -38,6 +45,9 @@ fun DrawOnMeApp(
     }
     val draftRepository: BoardDraftRepository = remember {
         boardDraftRepository ?: FileBoardDraftRepository(File(context.filesDir, "board_drafts"))
+    }
+    val tracker: AnalyticsTracker = remember {
+        analyticsTracker ?: FirebaseAnalyticsTracker.getInstance(context)
     }
 
     var backStack by androidx.compose.runtime.saveable.rememberSaveable(saver = AppScreen.BackStackSaver) {
@@ -56,10 +66,18 @@ fun DrawOnMeApp(
         popBack()
     }
 
-    Surface(
-        modifier = modifier.fillMaxSize()
+    CompositionLocalProvider(
+        LocalAnalyticsTracker provides tracker
     ) {
-        when (currentScreen) {
+        TrackScreenEngagement(
+            screenName = currentScreen.analyticsName,
+            params = currentScreen.analyticsParams
+        )
+
+        Surface(
+            modifier = modifier.fillMaxSize()
+        ) {
+            when (currentScreen) {
             is AppScreen.Splash -> {
                 SplashScreen(
                     onSplashFinished = {
@@ -71,12 +89,15 @@ fun DrawOnMeApp(
             is AppScreen.Onboarding -> {
                 OnboardingScreen(
                     onSelectFreeScribble = {
+                        tracker.trackEvent("mode_selected", mapOf("mode" to "free_scribble"))
                         backStack = backStack + AppScreen.FreeScribble
                     },
                     onSelectStencils = {
+                        tracker.trackEvent("mode_selected", mapOf("mode" to "stencils"))
                         backStack = backStack + AppScreen.StencilGallery
                     },
                     onSelectFridge = {
+                        tracker.trackEvent("mode_selected", mapOf("mode" to "fridge"))
                         backStack = backStack + AppScreen.FridgeGallery
                     }
                 )
@@ -93,6 +114,7 @@ fun DrawOnMeApp(
             is AppScreen.StencilGallery -> {
                 StencilGalleryScreen(
                     onSelectStencil = { stencilId ->
+                        tracker.trackEvent("stencil_selected", mapOf("stencil_id" to stencilId))
                         backStack = backStack + AppScreen.StencilDrawing(stencilId)
                     },
                     onNavigateBack = popBack
@@ -119,4 +141,5 @@ fun DrawOnMeApp(
             }
         }
     }
+}
 }

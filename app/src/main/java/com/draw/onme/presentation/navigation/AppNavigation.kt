@@ -63,3 +63,19 @@ sealed interface AppScreen {
             )
     }
 }
+
+val AppScreen.analyticsName: String
+    get() = when (this) {
+        is AppScreen.Splash -> "splash"
+        is AppScreen.Onboarding -> "onboarding"
+        is AppScreen.FreeScribble -> "free_scribble"
+        is AppScreen.StencilGallery -> "stencil_gallery"
+        is AppScreen.StencilDrawing -> "stencil_drawing"
+        is AppScreen.FridgeGallery -> "fridge_gallery"
+    }
+
+val AppScreen.analyticsParams: Map<String, Any>
+    get() = when (this) {
+        is AppScreen.StencilDrawing -> mapOf("stencil_id" to stencilId)
+        else -> emptyMap()
+    }
