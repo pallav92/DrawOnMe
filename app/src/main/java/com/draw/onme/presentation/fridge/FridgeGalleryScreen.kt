@@ -94,6 +94,7 @@ fun FridgeGalleryScreen(
     val artworks by repository.observeArtworks().collectAsStateWithLifecycle()
     val coroutineScope = rememberCoroutineScope()
     val context = LocalContext.current
+    val tracker = com.draw.onme.presentation.analytics.LocalAnalyticsTracker.current
 
     var artworkToDelete by remember { mutableStateOf<SavedArtwork?>(null) }
     var previewArtwork by remember { mutableStateOf<SavedArtwork?>(null) }
@@ -109,6 +110,12 @@ fun FridgeGalleryScreen(
             Box(
                 modifier = Modifier
                     .fillMaxSize()
+                    .clickable(
+                        interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
+                        indication = null
+                    ) {
+                        tracker.trackBlankPress("empty_fridge_tap", "fridge_gallery")
+                    }
                     .statusBarsPadding()
                     .navigationBarsPadding()
                     .verticalScroll(rememberScrollState())
@@ -174,6 +181,7 @@ fun FridgeGalleryScreen(
                         artwork = artwork,
                         onClick = { previewArtwork = artwork },
                         onShare = {
+                            tracker.trackShare(artwork.id, artwork.stencilId != null, artwork.strokes.size)
                             coroutineScope.launch {
                                 ArtworkImageExporter.shareArtwork(context, artwork)
                             }
@@ -276,11 +284,13 @@ fun FridgeGalleryScreen(
                 artwork = target,
                 onDismiss = { previewArtwork = null },
                 onShare = {
+                    tracker.trackShare(target.id, target.stencilId != null, target.strokes.size)
                     coroutineScope.launch {
                         ArtworkImageExporter.shareArtwork(context, target)
                     }
                 },
                 onPrint = {
+                    tracker.trackPrint(target.id, target.stencilId != null, target.strokes.size)
                     ArtworkImageExporter.printArtwork(context, target)
                 },
                 isLandscape = isLandscape

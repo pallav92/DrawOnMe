@@ -37,6 +37,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
@@ -119,6 +120,8 @@ fun ScribbleScreenContent(
     onPinToFridge: (() -> Unit)? = null,
     showPinnedToast: Boolean = false
 ) {
+    val tracker = com.draw.onme.presentation.analytics.LocalAnalyticsTracker.current
+
     Box(
         modifier = modifier.fillMaxSize()
     ) {
@@ -170,10 +173,13 @@ fun ScribbleScreenContent(
         }
 
         // Minimal Top Right pill: Pin to Fridge button
-        if (onPinToFridge != null && uiState.strokes.isNotEmpty()) {
+        if (onPinToFridge != null) {
+            val hasStrokes = uiState.strokes.isNotEmpty()
             Surface(
                 shape = RoundedCornerShape(24.dp),
-                color = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.92f),
+                color = MaterialTheme.colorScheme.surfaceContainerHighest.copy(
+                    alpha = if (hasStrokes) 0.92f else 0.45f
+                ),
                 tonalElevation = 3.dp,
                 shadowElevation = 4.dp,
                 modifier = Modifier
@@ -182,12 +188,23 @@ fun ScribbleScreenContent(
                     .padding(end = 16.dp, top = 12.dp)
             ) {
                 IconButton(
-                    onClick = onPinToFridge,
+                    onClick = {
+                        if (hasStrokes) {
+                            tracker.trackEvent("pin_to_fridge", mapOf("stroke_count" to uiState.strokes.size))
+                            onPinToFridge()
+                        } else {
+                            tracker.trackBlankPress("empty_canvas_save", "free_scribble")
+                        }
+                    },
                     modifier = Modifier
                         .padding(horizontal = 4.dp, vertical = 4.dp)
                         .size(36.dp)
                 ) {
-                    Text(text = "📌", fontSize = 20.sp)
+                    Text(
+                        text = "📌",
+                        fontSize = 20.sp,
+                        modifier = Modifier.alpha(if (hasStrokes) 1f else 0.45f)
+                    )
                 }
             }
         }

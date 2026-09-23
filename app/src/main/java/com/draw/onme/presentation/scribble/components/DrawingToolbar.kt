@@ -606,31 +606,53 @@ private fun ToolbarActionGroup(
     onAction: (ScribbleAction) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val tracker = com.draw.onme.presentation.analytics.LocalAnalyticsTracker.current
+
     Row(
         modifier = modifier,
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(2.dp)
     ) {
         IconButton(
-            onClick = { onAction(ScribbleAction.Undo) },
-            enabled = uiState.canUndo,
+            onClick = {
+                if (uiState.canUndo) {
+                    onAction(ScribbleAction.Undo)
+                } else {
+                    tracker.trackBlankPress("empty_undo", "drawing_toolbar")
+                }
+            },
             modifier = Modifier.size(34.dp)
         ) {
             Icon(
                 imageVector = Icons.AutoMirrored.Filled.Undo,
                 contentDescription = "Undo",
+                tint = if (uiState.canUndo) {
+                    MaterialTheme.colorScheme.onSurface
+                } else {
+                    MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
+                },
                 modifier = Modifier.size(18.dp)
             )
         }
 
         IconButton(
-            onClick = { onAction(ScribbleAction.Redo) },
-            enabled = uiState.canRedo,
+            onClick = {
+                if (uiState.canRedo) {
+                    onAction(ScribbleAction.Redo)
+                } else {
+                    tracker.trackBlankPress("empty_redo", "drawing_toolbar")
+                }
+            },
             modifier = Modifier.size(34.dp)
         ) {
             Icon(
                 imageVector = Icons.AutoMirrored.Filled.Redo,
                 contentDescription = "Redo",
+                tint = if (uiState.canRedo) {
+                    MaterialTheme.colorScheme.onSurface
+                } else {
+                    MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
+                },
                 modifier = Modifier.size(18.dp)
             )
         }
@@ -642,19 +664,23 @@ private fun ToolbarActionGroup(
         )
 
         // Prominent, unmistakable Clear button
+        val hasStrokes = uiState.strokes.isNotEmpty() || uiState.currentStroke != null
         Surface(
             shape = RoundedCornerShape(12.dp),
-            color = if (uiState.strokes.isNotEmpty()) {
+            color = if (hasStrokes) {
                 MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.85f)
             } else {
                 Color.Transparent
             },
             modifier = Modifier
                 .clip(RoundedCornerShape(12.dp))
-                .clickable(
-                    enabled = uiState.strokes.isNotEmpty() || uiState.currentStroke != null,
-                    onClick = { onAction(ScribbleAction.RequestClearCanvas) }
-                )
+                .clickable {
+                    if (hasStrokes) {
+                        onAction(ScribbleAction.RequestClearCanvas)
+                    } else {
+                        tracker.trackBlankPress("empty_clear", "drawing_toolbar")
+                    }
+                }
         ) {
             Row(
                 modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp),

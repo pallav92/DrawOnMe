@@ -42,6 +42,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
@@ -103,6 +104,7 @@ fun StencilDrawingScreen(
     val stencil = remember(stencilId) { repository.getStencilById(stencilId) }
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val coroutineScope = rememberCoroutineScope()
+    val tracker = com.draw.onme.presentation.analytics.LocalAnalyticsTracker.current
 
     var isGuideVisible by remember { mutableStateOf(true) }
     val guideOpacity by remember { mutableFloatStateOf(0.38f) }
@@ -221,31 +223,56 @@ fun StencilDrawingScreen(
                 // Magic Wand Reveal & Celebration button
                 IconButton(
                     onClick = {
-                        isGuideVisible = false
-                        showCelebration = true
+                        if (uiState.strokes.isNotEmpty()) {
+                            tracker.trackEvent(
+                                "magic_wand_celebration",
+                                mapOf("stencil_id" to stencilId, "stroke_count" to uiState.strokes.size)
+                            )
+                            isGuideVisible = false
+                            showCelebration = true
+                        } else {
+                            tracker.trackBlankPress("empty_magic_wand", "stencil_drawing")
+                        }
                     },
                     modifier = Modifier.size(36.dp)
                 ) {
-                    Text(text = "🪄", fontSize = 20.sp)
+                    Text(
+                        text = "🪄",
+                        fontSize = 20.sp,
+                        modifier = Modifier.alpha(if (uiState.strokes.isNotEmpty()) 1f else 0.5f)
+                    )
                 }
 
                 // Pin to Fridge button
-                if (artworkRepository != null && uiState.strokes.isNotEmpty()) {
+                if (artworkRepository != null) {
+                    val hasStrokes = uiState.strokes.isNotEmpty()
                     IconButton(
                         onClick = {
-                            coroutineScope.launch {
-                                val artwork = SavedArtwork.createCropped(
-                                    title = stencil?.title ?: "My Masterpiece",
-                                    strokes = uiState.strokes,
-                                    stencilId = stencilId
+                            if (hasStrokes) {
+                                tracker.trackEvent(
+                                    "pin_to_fridge",
+                                    mapOf("stencil_id" to stencilId, "stroke_count" to uiState.strokes.size)
                                 )
-                                artworkRepository.saveArtwork(artwork)
-                                showPinnedToast = true
+                                coroutineScope.launch {
+                                    val artwork = SavedArtwork.createCropped(
+                                        title = stencil?.title ?: "My Masterpiece",
+                                        strokes = uiState.strokes,
+                                        stencilId = stencilId
+                                    )
+                                    artworkRepository.saveArtwork(artwork)
+                                    showPinnedToast = true
+                                }
+                            } else {
+                                tracker.trackBlankPress("empty_canvas_save", "stencil_drawing")
                             }
                         },
                         modifier = Modifier.size(36.dp)
                     ) {
-                        Text(text = "📌", fontSize = 18.sp)
+                        Text(
+                            text = "📌",
+                            fontSize = 18.sp,
+                            modifier = Modifier.alpha(if (hasStrokes) 1f else 0.45f)
+                        )
                     }
                 }
 
