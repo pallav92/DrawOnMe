@@ -1,3 +1,7 @@
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
@@ -44,7 +48,7 @@ android {
         targetSdk = 37
         versionCode = 1
         
-        versionName = "1.0"
+        versionName = "1.0.1"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -66,6 +70,19 @@ android {
     buildFeatures {
         compose = true
     }
+
+}
+
+base {
+    archivesName.set("DrawOnMe")
+}
+
+val androidComponents = extensions.getByType<com.android.build.api.variant.ApplicationAndroidComponentsExtension>()
+val today = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date())
+
+androidComponents.onVariants { variant ->
+    val baseName = "DrawOnMe_${variant.name}_${android.defaultConfig.versionName}_${android.defaultConfig.versionCode}_$today"
+    variant.outputs.forEach { it.outputFileName.set("$baseName.apk") }
 }
 
 dependencies {
