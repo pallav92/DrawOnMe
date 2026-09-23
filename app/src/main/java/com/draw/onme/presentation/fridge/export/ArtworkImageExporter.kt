@@ -1,6 +1,7 @@
 package com.draw.onme.presentation.fridge.export
 
 import android.app.Activity
+import android.content.ContentValues
 import android.content.Context
 import android.content.Intent
 import android.graphics.Bitmap
@@ -12,6 +13,9 @@ import android.graphics.PorterDuff
 import android.graphics.PorterDuffXfermode
 import android.graphics.Typeface
 import android.net.Uri
+import android.os.Build
+import android.os.Environment
+import android.provider.MediaStore
 import androidx.core.content.FileProvider
 import androidx.print.PrintHelper
 import com.draw.onme.domain.model.DrawingTool
@@ -256,6 +260,58 @@ object ArtworkImageExporter {
             }
         }
         context.startActivity(chooserIntent)
+    }
+
+    /**
+     * Saves [artwork] as a high-resolution PNG image directly into the device's public Pictures
+     * media store directory (e.g. Pictures/DrawOnMe) so it appears immediately in the device Gallery / Photos app.
+     *
+     * @return [Result] containing the [Uri] of the saved media item or the encountered failure.
+     */
+    suspend fun saveToGallery(context: Context, artwork: SavedArtwork): Result<Uri> = withContext(Dispatchers.IO) {
+        runCatching {
+            val bitmap = renderToBitmap(artwork, includeFooter = true)
+            val cleanTitle = artwork.title
+                .trim()
+                .replace(Regex("[^a-zA-Z0-9_-]"), "_")
+                .ifBlank { "Artwork" }
+            val fileName = "DrawOnMe_${cleanTitle}_${System.currentTimeMillis()}.png"
+
+            val contentValues = ContentValues().apply {
+                put(MediaStore.Images.Media.DISPLAY_NAME, fileName)
+                put(MediaStore.Images.Media.MIME_TYPE, "image/png")
+                put(MediaStore.Images.Media.DATE_ADDED, System.currentTimeMillis() / 1000)
+                put(MediaStore.Images.Media.DATE_TAKEN, System.currentTimeMillis())
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                    put(MediaStore.Images.Media.RELATIVE_PATH, "${Environment.DIRECTORY_PICTURES}/DrawOnMe")
+                    put(MediaStore.Images.Media.IS_PENDING, 1)
+                }
+            }
+
+            val resolver = context.contentResolver
+            val imageUri = resolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, contentValues)
+                ?: error("Failed to create MediaStore entry for $fileName")
+
+            try {
+                resolver.openOutputStream(imageUri)?.use { outStream ->
+                    if (!bitmap.compress(Bitmap.CompressFormat.PNG, 100, outStream)) {
+                        error("Failed to write bitmap data to stream")
+                    }
+                } ?: error("Failed to open output stream for $imageUri")
+
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                    contentValues.clear()
+                    contentValues.put(MediaStore.Images.Media.IS_PENDING, 0)
+                    resolver.update(imageUri, contentValues, null, null)
+                }
+                imageUri
+            } catch (e: Exception) {
+                resolver.delete(imageUri, null, null)
+                throw e
+            } finally {
+                bitmap.recycle()
+            }
+        }
     }
 
     /**

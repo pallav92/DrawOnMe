@@ -37,6 +37,15 @@ interface AnalyticsTracker {
     fun trackShare(artworkId: String, hasStencil: Boolean, strokeCount: Int)
 
     /**
+     * Logs an artwork save action to the device photo gallery.
+     *
+     * @param artworkId Identifier of the saved artwork.
+     * @param hasStencil True if the artwork was created using a stencil template.
+     * @param strokeCount Total number of drawing strokes in the artwork.
+     */
+    fun trackSaveToGallery(artworkId: String, hasStencil: Boolean, strokeCount: Int)
+
+    /**
      * Logs an artwork print action via Android PrintManager.
      *
      * @param artworkId Identifier of the printed artwork.
@@ -73,6 +82,7 @@ object NoOpAnalyticsTracker : AnalyticsTracker {
         params: Map<String, Any>
     ) = Unit
     override fun trackShare(artworkId: String, hasStencil: Boolean, strokeCount: Int) = Unit
+    override fun trackSaveToGallery(artworkId: String, hasStencil: Boolean, strokeCount: Int) = Unit
     override fun trackPrint(artworkId: String, hasStencil: Boolean, strokeCount: Int) = Unit
     override fun trackBlankPress(target: String, screenName: String) = Unit
     override fun trackEvent(eventName: String, params: Map<String, Any>) = Unit

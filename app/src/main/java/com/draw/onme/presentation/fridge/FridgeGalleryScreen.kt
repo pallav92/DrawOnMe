@@ -1,6 +1,7 @@
 package com.draw.onme.presentation.fridge
 
 import android.content.res.Configuration
+import android.widget.Toast
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -31,6 +32,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Print
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.AlertDialog
@@ -186,6 +188,17 @@ fun FridgeGalleryScreen(
                                 ArtworkImageExporter.shareArtwork(context, artwork)
                             }
                         },
+                        onSave = {
+                            tracker.trackSaveToGallery(artwork.id, artwork.stencilId != null, artwork.strokes.size)
+                            coroutineScope.launch {
+                                val result = ArtworkImageExporter.saveToGallery(context, artwork)
+                                if (result.isSuccess) {
+                                    Toast.makeText(context, "Saved to Gallery! 🖼️", Toast.LENGTH_SHORT).show()
+                                } else {
+                                    Toast.makeText(context, "Could not save to Gallery", Toast.LENGTH_SHORT).show()
+                                }
+                            }
+                        },
                         onDelete = { artworkToDelete = artwork }
                     )
                 }
@@ -278,7 +291,7 @@ fun FridgeGalleryScreen(
             )
         }
 
-        // Fullscreen preview and share/print dialog
+        // Fullscreen preview and share/save/print dialog
         previewArtwork?.let { target ->
             ArtworkShareDialog(
                 artwork = target,
@@ -287,6 +300,17 @@ fun FridgeGalleryScreen(
                     tracker.trackShare(target.id, target.stencilId != null, target.strokes.size)
                     coroutineScope.launch {
                         ArtworkImageExporter.shareArtwork(context, target)
+                    }
+                },
+                onSaveToGallery = {
+                    tracker.trackSaveToGallery(target.id, target.stencilId != null, target.strokes.size)
+                    coroutineScope.launch {
+                        val result = ArtworkImageExporter.saveToGallery(context, target)
+                        if (result.isSuccess) {
+                            Toast.makeText(context, "Saved to Gallery! 🖼️", Toast.LENGTH_SHORT).show()
+                        } else {
+                            Toast.makeText(context, "Could not save to Gallery", Toast.LENGTH_SHORT).show()
+                        }
                     }
                 },
                 onPrint = {
@@ -304,6 +328,7 @@ private fun ArtworkShareDialog(
     artwork: SavedArtwork,
     onDismiss: () -> Unit,
     onShare: () -> Unit,
+    onSaveToGallery: () -> Unit,
     onPrint: () -> Unit,
     isLandscape: Boolean
 ) {
@@ -367,7 +392,7 @@ private fun ArtworkShareDialog(
                 Spacer(modifier = Modifier.height(14.dp))
 
                 Text(
-                    text = "Share this drawing as an image to social media or print a physical keepsake!",
+                    text = "Save this drawing to your device gallery, share it with family, or print a physical keepsake!",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     textAlign = androidx.compose.ui.text.style.TextAlign.Center,
@@ -377,32 +402,48 @@ private fun ArtworkShareDialog(
         },
         confirmButton = {
             Row(
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 OutlinedButton(
                     onClick = onPrint,
-                    shape = RoundedCornerShape(12.dp)
+                    shape = RoundedCornerShape(12.dp),
+                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 8.dp)
                 ) {
                     Icon(
                         imageVector = Icons.Default.Print,
                         contentDescription = null,
-                        modifier = Modifier.size(18.dp)
+                        modifier = Modifier.size(16.dp)
                     )
-                    Spacer(modifier = Modifier.width(6.dp))
+                    Spacer(modifier = Modifier.width(4.dp))
                     Text("Print")
+                }
+
+                OutlinedButton(
+                    onClick = onSaveToGallery,
+                    shape = RoundedCornerShape(12.dp),
+                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 8.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Download,
+                        contentDescription = null,
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text("Save")
                 }
 
                 Button(
                     onClick = onShare,
-                    shape = RoundedCornerShape(12.dp)
+                    shape = RoundedCornerShape(12.dp),
+                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp)
                 ) {
                     Icon(
                         imageVector = Icons.Default.Share,
                         contentDescription = null,
-                        modifier = Modifier.size(18.dp)
+                        modifier = Modifier.size(16.dp)
                     )
-                    Spacer(modifier = Modifier.width(6.dp))
+                    Spacer(modifier = Modifier.width(4.dp))
                     Text("Share")
                 }
             }
@@ -422,7 +463,8 @@ private fun PinnedArtworkCard(
     onClick: () -> Unit,
     onShare: () -> Unit,
     onDelete: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onSave: (() -> Unit)? = null
 ) {
     val dateString = remember(artwork.createdAt) {
         val formatter = SimpleDateFormat("MMM d, yyyy", Locale.getDefault())
@@ -514,8 +556,22 @@ private fun PinnedArtworkCard(
 
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        horizontalArrangement = Arrangement.spacedBy(2.dp)
                     ) {
+                        if (onSave != null) {
+                            IconButton(
+                                onClick = onSave,
+                                modifier = Modifier.size(28.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Download,
+                                    contentDescription = "Save to Gallery",
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
+                        }
+
                         IconButton(
                             onClick = onShare,
                             modifier = Modifier.size(28.dp)

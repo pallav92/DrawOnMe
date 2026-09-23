@@ -8,6 +8,7 @@ class FakeAnalyticsTracker : AnalyticsTracker {
     data class ScreenViewEvent(val screenName: String, val screenClass: String?)
     data class ScreenEngagementEvent(val screenName: String, val durationSeconds: Long, val params: Map<String, Any>)
     data class ShareEvent(val artworkId: String, val hasStencil: Boolean, val strokeCount: Int)
+    data class SaveToGalleryEvent(val artworkId: String, val hasStencil: Boolean, val strokeCount: Int)
     data class PrintEvent(val artworkId: String, val hasStencil: Boolean, val strokeCount: Int)
     data class BlankPressEvent(val target: String, val screenName: String)
     data class CustomEvent(val eventName: String, val params: Map<String, Any>)
@@ -15,6 +16,7 @@ class FakeAnalyticsTracker : AnalyticsTracker {
     val screenViews = mutableListOf<ScreenViewEvent>()
     val screenEngagements = mutableListOf<ScreenEngagementEvent>()
     val shares = mutableListOf<ShareEvent>()
+    val savesToGallery = mutableListOf<SaveToGalleryEvent>()
     val prints = mutableListOf<PrintEvent>()
     val blankPresses = mutableListOf<BlankPressEvent>()
     val customEvents = mutableListOf<CustomEvent>()
@@ -35,6 +37,10 @@ class FakeAnalyticsTracker : AnalyticsTracker {
         shares.add(ShareEvent(artworkId, hasStencil, strokeCount))
     }
 
+    override fun trackSaveToGallery(artworkId: String, hasStencil: Boolean, strokeCount: Int) {
+        savesToGallery.add(SaveToGalleryEvent(artworkId, hasStencil, strokeCount))
+    }
+
     override fun trackPrint(artworkId: String, hasStencil: Boolean, strokeCount: Int) {
         prints.add(PrintEvent(artworkId, hasStencil, strokeCount))
     }
@@ -51,6 +57,7 @@ class FakeAnalyticsTracker : AnalyticsTracker {
         screenViews.clear()
         screenEngagements.clear()
         shares.clear()
+        savesToGallery.clear()
         prints.clear()
         blankPresses.clear()
         customEvents.clear()

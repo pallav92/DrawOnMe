@@ -43,6 +43,15 @@ class FirebaseAnalyticsTracker(
         firebaseAnalytics.logEvent(FirebaseAnalytics.Event.SHARE, bundle)
     }
 
+    override fun trackSaveToGallery(artworkId: String, hasStencil: Boolean, strokeCount: Int) {
+        val bundle = Bundle().apply {
+            putString(FirebaseAnalytics.Param.ITEM_ID, artworkId)
+            putBoolean("has_stencil", hasStencil)
+            putInt("stroke_count", strokeCount)
+        }
+        firebaseAnalytics.logEvent(EVENT_SAVE_TO_GALLERY, bundle)
+    }
+
     override fun trackPrint(artworkId: String, hasStencil: Boolean, strokeCount: Int) {
         val bundle = Bundle().apply {
             putString(FirebaseAnalytics.Param.ITEM_ID, artworkId)
@@ -84,6 +93,7 @@ class FirebaseAnalyticsTracker(
     companion object {
         const val EVENT_SCREEN_ENGAGEMENT = "screen_engagement"
         const val EVENT_PRINT_ARTWORK = "print_artwork"
+        const val EVENT_SAVE_TO_GALLERY = "save_artwork_to_gallery"
         const val EVENT_BLANK_PRESS = "blank_press"
 
         @Volatile

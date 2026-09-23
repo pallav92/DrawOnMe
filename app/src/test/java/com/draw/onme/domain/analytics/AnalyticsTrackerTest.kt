@@ -61,6 +61,17 @@ class AnalyticsTrackerTest {
     }
 
     @Test
+    fun `trackSaveToGallery records artwork details`() {
+        tracker.trackSaveToGallery(artworkId = "art_789", hasStencil = true, strokeCount = 20)
+
+        assertEquals(1, tracker.savesToGallery.size)
+        val save = tracker.savesToGallery.first()
+        assertEquals("art_789", save.artworkId)
+        assertEquals(true, save.hasStencil)
+        assertEquals(20, save.strokeCount)
+    }
+
+    @Test
     fun `trackBlankPress records target and screen name`() {
         tracker.trackBlankPress(target = "empty_canvas_save", screenName = "free_scribble")
         tracker.trackBlankPress(target = "empty_magic_wand", screenName = "stencil_drawing")
