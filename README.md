@@ -38,7 +38,7 @@ A delightful, safe, and intuitive Android drawing and tracing app designed speci
 DrawOnMe strictly follows **Clean Architecture**, **Unidirectional Data Flow (UDF)**, and **Single Source of Truth (SSOT)** principles:
 
 ```
-app/src/main/java/com/pallav/drawonme/
+app/src/main/java/com/draw/onme/
  ├── domain/                             # Pure Kotlin business entities & repository contracts (Zero Android dependencies)
  │    ├── model/                         # Stroke, Point, DrawingTool, Stencil, SavedArtwork, ArtworkCropper
  │    └── repository/                    # StencilRepository, ArtworkRepository, BoardDraftRepository

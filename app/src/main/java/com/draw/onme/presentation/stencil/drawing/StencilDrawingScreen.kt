@@ -1,0 +1,380 @@
+package com.draw.onme.presentation.stencil.drawing
+
+import android.content.res.Configuration
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.ui.unit.IntSize
+import kotlin.math.roundToInt
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.BookmarkAdd
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Color
+import com.draw.onme.presentation.scribble.model.CanvasTransformState
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.PathEffect
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.StrokeJoin
+import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.draw.onme.data.repository.InMemoryStencilRepository
+import com.draw.onme.domain.model.SavedArtwork
+import com.draw.onme.domain.model.Stencil
+import com.draw.onme.domain.repository.ArtworkRepository
+import com.draw.onme.domain.repository.BoardDraftRepository
+import com.draw.onme.domain.repository.StencilRepository
+import com.draw.onme.presentation.scribble.ScribbleAction
+import com.draw.onme.presentation.scribble.ScribbleViewModel
+import com.draw.onme.presentation.scribble.components.CollapsibleDrawingToolbar
+import com.draw.onme.presentation.scribble.components.DrawingToolbar
+import com.draw.onme.presentation.scribble.components.ScribbleCanvas
+import com.draw.onme.presentation.stencil.drawing.components.CelebrationOverlay
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+
+/**
+ * Screen where children follow and trace cartoon character stencils.
+ * Features a dashed guideline overlay, Magic Wand celebration, and Fridge pinning.
+ *
+ * @param stencilId ID of the character stencil to load.
+ * @param onNavigateBack Callback to return to the Stencil Gallery.
+ * @param modifier Optional modifier applied to the screen root.
+ * @param repository Repository supplying available stencils.
+ * @param artworkRepository Optional repository for saving artwork to the fridge.
+ * @param boardDraftRepository Optional repository for loading and saving board strokes.
+ * @param boardId Unique identifier for this stencil board.
+ * @param viewModel ViewModel managing strokes, colors, undo/redo, and tools.
+ */
+@Composable
+fun StencilDrawingScreen(
+    stencilId: String,
+    onNavigateBack: () -> Unit,
+    modifier: Modifier = Modifier,
+    repository: StencilRepository = remember { InMemoryStencilRepository() },
+    artworkRepository: ArtworkRepository? = null,
+    boardDraftRepository: BoardDraftRepository? = null,
+    boardId: String = ScribbleViewModel.stencilBoardId(stencilId),
+    viewModel: ScribbleViewModel = viewModel(
+        key = "scribble_vm_$boardId",
+        factory = ScribbleViewModel.provideFactory(boardId, boardDraftRepository)
+    )
+) {
+    val stencil = remember(stencilId) { repository.getStencilById(stencilId) }
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val coroutineScope = rememberCoroutineScope()
+
+    var isGuideVisible by remember { mutableStateOf(true) }
+    val guideOpacity by remember { mutableFloatStateOf(0.38f) }
+    var showCelebration by remember { mutableStateOf(false) }
+    var showPinnedToast by remember { mutableStateOf(false) }
+
+    LaunchedEffect(showPinnedToast) {
+        if (showPinnedToast) {
+            delay(2400)
+            showPinnedToast = false
+        }
+    }
+
+    BoxWithConstraints(
+        modifier = modifier.fillMaxSize()
+    ) {
+        val width = constraints.maxWidth.toFloat()
+        val height = constraints.maxHeight.toFloat()
+        val isLandscape = width > height
+
+        val scale = if (isLandscape) height * 0.76f else minOf(width, height) * 0.92f
+        val offsetX = (width - scale) / 2f
+        val offsetY = (height - scale) / 2f
+        val targetZoom = if (scale > 0f) scale / STENCIL_CANVAS_SIZE else 1.0f
+        val targetPan = Offset(offsetX, offsetY)
+
+        val transformState = remember {
+            CanvasTransformState(
+                initialZoom = targetZoom,
+                initialPan = targetPan
+            ).apply {
+                viewportSize = IntSize(width.roundToInt(), height.roundToInt())
+            }
+        }
+
+        val lastSizeRef = remember { object { var size = IntSize.Zero } }
+        val currentSize = IntSize(width.roundToInt(), height.roundToInt())
+        if (width > 0f && height > 0f && currentSize != lastSizeRef.size) {
+            lastSizeRef.size = currentSize
+            transformState.setTransform(targetPan, targetZoom)
+            transformState.viewportSize = currentSize
+        }
+
+        // Drawing canvas with background stencil guide
+        ScribbleCanvas(
+            uiState = uiState,
+            onAction = viewModel::onAction,
+            modifier = Modifier.fillMaxSize(),
+            transformState = transformState,
+            showBoundary = false,
+            isPanZoomEnabled = true,
+            backgroundContent = {
+                if (isGuideVisible && stencil != null) {
+                    Canvas(modifier = Modifier.fillMaxSize()) {
+                        drawStencilGuide(
+                            stencil = stencil,
+                            opacity = guideOpacity,
+                            guideColor = Color(0xFF7E57C2),
+                            canvasSize = STENCIL_CANVAS_SIZE
+                        )
+                    }
+                }
+            }
+        )
+
+        // Minimal Top Left pill: Back button + Stencil Title
+        Surface(
+            shape = RoundedCornerShape(24.dp),
+            color = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.92f),
+            tonalElevation = 3.dp,
+            shadowElevation = 4.dp,
+            modifier = Modifier
+                .align(Alignment.TopStart)
+                .statusBarsPadding()
+                .padding(start = 16.dp, top = 12.dp)
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.padding(start = 4.dp, end = 14.dp, top = 4.dp, bottom = 4.dp)
+            ) {
+                IconButton(
+                    onClick = onNavigateBack,
+                    modifier = Modifier.size(36.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                        contentDescription = "Back to Gallery",
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+                Spacer(modifier = Modifier.width(4.dp))
+                Text(
+                    text = stencil?.let { "${it.iconEmoji} ${it.title}" } ?: "Cartoon Studio",
+                    style = MaterialTheme.typography.titleMedium.copy(
+                        fontWeight = FontWeight.Bold
+                    )
+                )
+            }
+        }
+
+        // Minimal Top Right pill: Magic Wand, Pin to Fridge, and Guide Toggle
+        Surface(
+            shape = RoundedCornerShape(24.dp),
+            color = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.92f),
+            tonalElevation = 3.dp,
+            shadowElevation = 4.dp,
+            modifier = Modifier
+                .align(Alignment.TopEnd)
+                .statusBarsPadding()
+                .padding(end = 16.dp, top = 12.dp)
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.padding(horizontal = 4.dp, vertical = 4.dp)
+            ) {
+                // Magic Wand Reveal & Celebration button
+                IconButton(
+                    onClick = {
+                        isGuideVisible = false
+                        showCelebration = true
+                    },
+                    modifier = Modifier.size(36.dp)
+                ) {
+                    Text(text = "🪄", fontSize = 20.sp)
+                }
+
+                // Pin to Fridge button
+                if (artworkRepository != null && uiState.strokes.isNotEmpty()) {
+                    IconButton(
+                        onClick = {
+                            coroutineScope.launch {
+                                val artwork = SavedArtwork.createCropped(
+                                    title = stencil?.title ?: "My Masterpiece",
+                                    strokes = uiState.strokes,
+                                    stencilId = stencilId
+                                )
+                                artworkRepository.saveArtwork(artwork)
+                                showPinnedToast = true
+                            }
+                        },
+                        modifier = Modifier.size(36.dp)
+                    ) {
+                        Text(text = "📌", fontSize = 18.sp)
+                    }
+                }
+
+                // Toggle guide visibility
+                IconButton(
+                    onClick = { isGuideVisible = !isGuideVisible },
+                    modifier = Modifier.size(36.dp)
+                ) {
+                    Icon(
+                        imageVector = if (isGuideVisible) {
+                            Icons.Default.Visibility
+                        } else {
+                            Icons.Default.VisibilityOff
+                        },
+                        contentDescription = if (isGuideVisible) {
+                            "Hide Stencil Outline"
+                        } else {
+                            "Show Stencil Outline"
+                        },
+                        tint = if (isGuideVisible) {
+                            MaterialTheme.colorScheme.primary
+                        } else {
+                            MaterialTheme.colorScheme.onSurfaceVariant
+                        },
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+            }
+        }
+
+        // Toast feedback when pinned to fridge
+        AnimatedVisibility(
+            visible = showPinnedToast,
+            enter = fadeIn(),
+            exit = fadeOut(),
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .statusBarsPadding()
+                .padding(top = 64.dp)
+        ) {
+            Row(
+                modifier = Modifier
+                    .shadow(6.dp, RoundedCornerShape(20.dp))
+                    .clip(RoundedCornerShape(20.dp))
+                    .background(Color(0xFF2E7D32))
+                    .padding(horizontal = 16.dp, vertical = 10.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(text = "🖼️", fontSize = 18.sp)
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = "Pinned to your Fridge!",
+                    color = Color.White,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 14.sp
+                )
+            }
+        }
+
+        // Movable collapsible drawing toolbar
+        CollapsibleDrawingToolbar(
+            uiState = uiState,
+            onAction = viewModel::onAction,
+            modifier = Modifier.fillMaxSize()
+        )
+
+        // Clear confirmation dialog
+        if (uiState.showClearDialog) {
+            AlertDialog(
+                onDismissRequest = { viewModel.onAction(ScribbleAction.DismissClearCanvas) },
+                title = { Text("Clear Tracing?") },
+                text = { Text("This will clear all your drawings on this stencil. The stencil outline will remain.") },
+                confirmButton = {
+                    TextButton(onClick = { viewModel.onAction(ScribbleAction.ConfirmClearCanvas) }) {
+                        Text("Clear")
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { viewModel.onAction(ScribbleAction.DismissClearCanvas) }) {
+                        Text("Cancel")
+                    }
+                }
+            )
+        }
+
+        // Celebratory Confetti and Star Burst Overlay
+        CelebrationOverlay(
+            visible = showCelebration,
+            onDismiss = { showCelebration = false }
+        )
+    }
+}
+
+const val STENCIL_CANVAS_SIZE: Float = 1000f
+
+private fun DrawScope.drawStencilGuide(
+    stencil: Stencil,
+    opacity: Float,
+    guideColor: Color,
+    canvasSize: Float = STENCIL_CANVAS_SIZE
+) {
+    val strokeColor = guideColor.copy(alpha = opacity)
+    val dashEffect = PathEffect.dashPathEffect(floatArrayOf(14f, 10f), 0f)
+
+    for (stencilPath in stencil.paths) {
+        if (stencilPath.points.isEmpty()) continue
+
+        val path = Path()
+        val first = stencilPath.points[0]
+        path.moveTo(first.x * canvasSize, first.y * canvasSize)
+
+        for (i in 1 until stencilPath.points.size) {
+            val pt = stencilPath.points[i]
+            path.lineTo(pt.x * canvasSize, pt.y * canvasSize)
+        }
+
+        if (stencilPath.isClosed) {
+            path.close()
+        }
+
+        drawPath(
+            path = path,
+            color = strokeColor,
+            style = androidx.compose.ui.graphics.drawscope.Stroke(
+                width = 3.dp.toPx(),
+                cap = StrokeCap.Round,
+                join = StrokeJoin.Round,
+                pathEffect = dashEffect
+            )
+        )
+    }
+}

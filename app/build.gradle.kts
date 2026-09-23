@@ -4,16 +4,17 @@ plugins {
 }
 
 android {
-    namespace = "com.pallav.drawonme"
+    namespace = "com.draw.onme"
     compileSdk {
         version = release(37)
     }
 
     defaultConfig {
-        applicationId = "com.pallav.drawonme"
+        applicationId = "com.draw.onme"
         minSdk = 24
         targetSdk = 37
         versionCode = 1
+        
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
