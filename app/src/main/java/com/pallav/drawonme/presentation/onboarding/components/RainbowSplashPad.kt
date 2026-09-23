@@ -4,6 +4,7 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.layout.Arrangement
@@ -31,6 +32,7 @@ import androidx.compose.runtime.withFrameMillis
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -105,6 +107,8 @@ fun RainbowSplashPad(
         }
     }
 
+    val isDark = isSystemInDarkTheme()
+
     val rainbowBorder = remember {
         Brush.linearGradient(
             colors = listOf(
@@ -118,21 +122,31 @@ fun RainbowSplashPad(
         )
     }
 
-    val slateBackground = remember {
-        Brush.verticalGradient(
-            colors = listOf(
-                Color(0xFF161828),
-                Color(0xFF0F111C)
+    val backgroundBrush = remember(isDark) {
+        if (isDark) {
+            Brush.verticalGradient(
+                colors = listOf(
+                    Color(0xFF161828),
+                    Color(0xFF0F111C)
+                )
             )
-        )
+        } else {
+            Brush.verticalGradient(
+                colors = listOf(
+                    Color(0xFFFFFFFF),
+                    Color(0xFFF5F2FC)
+                )
+            )
+        }
     }
 
     Box(
         modifier = modifier
             .fillMaxWidth()
             .height(height)
+            .shadow(elevation = if (isDark) 0.dp else 4.dp, shape = RoundedCornerShape(24.dp))
             .clip(RoundedCornerShape(24.dp))
-            .background(slateBackground)
+            .background(backgroundBrush)
             .border(2.5.dp, rainbowBorder, RoundedCornerShape(24.dp))
             .pointerInput(Unit) {
                 awaitEachGesture {
@@ -225,11 +239,11 @@ fun RainbowSplashPad(
 
                 if (stroke.points.size == 1) {
                     val pt = stroke.points[0]
-                    val color = Color.hsl(pt.hue, 1.0f, 0.55f)
-                    drawCircle(color = color.copy(alpha = 0.22f), radius = 14f, center = pt.position)
-                    drawCircle(color = color.copy(alpha = 0.55f), radius = 8f, center = pt.position)
+                    val color = Color.hsl(pt.hue, 1.0f, if (isDark) 0.55f else 0.48f)
+                    drawCircle(color = color.copy(alpha = if (isDark) 0.22f else 0.16f), radius = 14f, center = pt.position)
+                    drawCircle(color = color.copy(alpha = if (isDark) 0.55f else 0.45f), radius = 8f, center = pt.position)
                     drawCircle(color = color, radius = 4.5f, center = pt.position)
-                    drawCircle(color = Color.White.copy(alpha = 0.9f), radius = 2f, center = pt.position)
+                    drawCircle(color = if (isDark) Color.White.copy(alpha = 0.9f) else Color.hsl(pt.hue, 1.0f, 0.82f), radius = 2f, center = pt.position)
                     continue
                 }
 
@@ -237,22 +251,22 @@ fun RainbowSplashPad(
                     val pPrev = stroke.points[i - 1]
                     val pCurr = stroke.points[i]
                     val segHue = pCurr.hue
-                    val segColor = Color.hsl(segHue, 1.0f, 0.55f)
+                    val segColor = Color.hsl(segHue, 1.0f, if (isDark) 0.55f else 0.48f)
 
                     // Layer 1: Outer soft ambient glow
                     drawLine(
-                        color = segColor.copy(alpha = 0.22f),
+                        color = segColor.copy(alpha = if (isDark) 0.22f else 0.16f),
                         start = pPrev.position,
                         end = pCurr.position,
-                        strokeWidth = 26f,
+                        strokeWidth = if (isDark) 26f else 24f,
                         cap = StrokeCap.Round
                     )
                     // Layer 2: Vivid inner neon aura
                     drawLine(
-                        color = segColor.copy(alpha = 0.55f),
+                        color = segColor.copy(alpha = if (isDark) 0.55f else 0.45f),
                         start = pPrev.position,
                         end = pCurr.position,
-                        strokeWidth = 15f,
+                        strokeWidth = if (isDark) 15f else 14f,
                         cap = StrokeCap.Round
                     )
                     // Layer 3: Saturated vibrant core
@@ -260,12 +274,12 @@ fun RainbowSplashPad(
                         color = segColor.copy(alpha = 0.95f),
                         start = pPrev.position,
                         end = pCurr.position,
-                        strokeWidth = 8.5f,
+                        strokeWidth = if (isDark) 8.5f else 9f,
                         cap = StrokeCap.Round
                     )
-                    // Layer 4: White-hot laser center
+                    // Layer 4: Laser / highlight center
                     drawLine(
-                        color = Color.White.copy(alpha = 0.85f),
+                        color = if (isDark) Color.White.copy(alpha = 0.85f) else Color.hsl(segHue, 1.0f, 0.82f).copy(alpha = 0.80f),
                         start = pPrev.position,
                         end = pCurr.position,
                         strokeWidth = 3f,
@@ -276,15 +290,15 @@ fun RainbowSplashPad(
 
             // 2. Draw glowing comet heads at active touch points
             for ((_, activePt) in activeTouches) {
-                val orbColor = Color.hsl(activePt.hue, 1.0f, 0.60f)
+                val orbColor = Color.hsl(activePt.hue, 1.0f, if (isDark) 0.60f else 0.50f)
                 drawCircle(color = orbColor.copy(alpha = 0.35f), radius = 22f, center = activePt.position)
                 drawCircle(color = orbColor.copy(alpha = 0.75f), radius = 12f, center = activePt.position)
-                drawCircle(color = Color.White.copy(alpha = 0.95f), radius = 5f, center = activePt.position)
+                drawCircle(color = if (isDark) Color.White.copy(alpha = 0.95f) else Color.hsl(activePt.hue, 1.0f, 0.85f).copy(alpha = 0.95f), radius = 5f, center = activePt.position)
             }
 
             // 3. Draw magical floating sparkle particles
             for (particle in particles) {
-                val pColor = Color.hsl(particle.hue, 1.0f, 0.65f).copy(alpha = particle.alpha)
+                val pColor = Color.hsl(particle.hue, 1.0f, if (isDark) 0.65f else 0.48f).copy(alpha = particle.alpha)
                 drawSparkleStar(
                     center = particle.position,
                     radius = particle.size * particle.alpha,
@@ -292,7 +306,7 @@ fun RainbowSplashPad(
                     rotation = particle.rotation
                 )
                 drawCircle(
-                    color = Color.White.copy(alpha = particle.alpha * 0.9f),
+                    color = if (isDark) Color.White.copy(alpha = particle.alpha * 0.9f) else Color.hsl(particle.hue, 1.0f, 0.80f).copy(alpha = particle.alpha * 0.9f),
                     radius = particle.size * 0.35f * particle.alpha,
                     center = particle.position
                 )
@@ -316,13 +330,15 @@ fun RainbowSplashPad(
                     style = MaterialTheme.typography.titleMedium.copy(
                         fontWeight = FontWeight.Bold
                     ),
-                    color = Color(0xFFFFD54F) // Radiant warm gold
+                    color = if (isDark) Color(0xFFFFD54F) else Color(0xFF5E35B1) // Warm gold in dark, rich royal purple in light
                 )
                 Spacer(modifier = Modifier.height(2.dp))
                 Text(
                     text = "Draw glowing rainbow trails with your fingers",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = Color(0xFFCE93D8) // Soft glowing lilac
+                    style = MaterialTheme.typography.bodySmall.copy(
+                        fontWeight = if (isDark) FontWeight.Normal else FontWeight.Medium
+                    ),
+                    color = if (isDark) Color(0xFFCE93D8) else Color(0xFF7E57C2) // Soft lilac in dark, vibrant violet in light
                 )
             }
         }
@@ -331,7 +347,9 @@ fun RainbowSplashPad(
         if (strokes.isNotEmpty()) {
             Surface(
                 shape = RoundedCornerShape(14.dp),
-                color = Color.Black.copy(alpha = 0.55f),
+                color = if (isDark) Color.Black.copy(alpha = 0.55f) else Color.White.copy(alpha = 0.92f),
+                shadowElevation = if (isDark) 0.dp else 3.dp,
+                tonalElevation = if (isDark) 0.dp else 2.dp,
                 modifier = Modifier
                     .align(Alignment.TopEnd)
                     .padding(8.dp)
@@ -347,7 +365,7 @@ fun RainbowSplashPad(
                     style = MaterialTheme.typography.labelSmall.copy(
                         fontWeight = FontWeight.Bold
                     ),
-                    color = Color(0xFFFF80AB),
+                    color = if (isDark) Color(0xFFFF80AB) else Color(0xFFD81B60),
                     modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
                 )
             }
