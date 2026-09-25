@@ -21,6 +21,8 @@ import androidx.compose.material.icons.automirrored.filled.Undo
 import androidx.compose.material.icons.filled.AutoFixNormal
 import androidx.compose.material.icons.filled.DeleteSweep
 import androidx.compose.material.icons.filled.Edit
+import com.draw.onme.presentation.components.colorpicker.ColorPickerButton
+import com.draw.onme.presentation.components.colorpicker.UniversalColorPickerDialog
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
@@ -463,6 +465,7 @@ fun DrawingToolbar(
 ) {
     val configuration = LocalConfiguration.current
     val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
+    var showColorPicker by rememberSaveable { mutableStateOf(false) }
 
     Surface(
         modifier = modifier
@@ -501,7 +504,11 @@ fun DrawingToolbar(
                     contentAlignment = Alignment.Center
                 ) {
                     when (uiState.selectedTool) {
-                        DrawingTool.PEN, DrawingTool.HAND -> PenControls(uiState = uiState, onAction = onAction)
+                        DrawingTool.PEN, DrawingTool.HAND -> PenControls(
+                            uiState = uiState,
+                            onAction = onAction,
+                            onOpenColorPicker = { showColorPicker = true }
+                        )
                         DrawingTool.ERASER -> EraserControls(
                             uiState = uiState,
                             maxEraserSize = maxEraserSize,
@@ -555,6 +562,7 @@ fun DrawingToolbar(
                         DrawingTool.PEN, DrawingTool.HAND -> PenControls(
                             uiState = uiState,
                             onAction = onAction,
+                            onOpenColorPicker = { showColorPicker = true },
                             modifier = Modifier.fillMaxWidth()
                         )
                         DrawingTool.ERASER -> EraserControls(
@@ -567,6 +575,16 @@ fun DrawingToolbar(
                 }
             }
         }
+    }
+
+    if (showColorPicker) {
+        UniversalColorPickerDialog(
+            initialColor = uiState.selectedColor,
+            onColorSelected = { color ->
+                onAction(ScribbleAction.SelectColor(color))
+            },
+            onDismiss = { showColorPicker = false }
+        )
     }
 }
 
@@ -718,6 +736,7 @@ private fun ToolbarActionGroup(
 private fun PenControls(
     uiState: ScribbleUiState,
     onAction: (ScribbleAction) -> Unit,
+    onOpenColorPicker: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Row(
@@ -725,7 +744,7 @@ private fun PenControls(
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        // Color swatches
+        // Color swatches + Universal Color Picker button
         Row(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalAlignment = Alignment.CenterVertically
@@ -750,9 +769,25 @@ private fun PenControls(
                         )
                         .clickable {
                             onAction(ScribbleAction.SelectColor(color))
-                        }
-                )
+                        },
+                    contentAlignment = Alignment.Center
+                ) {
+                    if (isSelected) {
+                        Box(
+                            modifier = Modifier
+                                .size(8.dp)
+                                .clip(CircleShape)
+                                .background(Color.White)
+                        )
+                    }
+                }
             }
+
+            ColorPickerButton(
+                onClick = onOpenColorPicker,
+                size = 28.dp,
+                iconSize = 16.dp
+            )
         }
 
         // Pen stroke width selector

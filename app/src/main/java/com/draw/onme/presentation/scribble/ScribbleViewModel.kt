@@ -121,9 +121,15 @@ class ScribbleViewModel(
     }
 
     private fun handleSelectColor(color: StrokeColor) {
-        _uiState.update {
-            it.copy(
+        _uiState.update { state ->
+            val updatedColors = if (state.availableColors.any { it.argb == color.argb }) {
+                state.availableColors
+            } else {
+                listOf(color) + state.availableColors
+            }
+            state.copy(
                 selectedColor = color,
+                availableColors = updatedColors,
                 selectedTool = DrawingTool.PEN // Automatically switch back to Pen when color is selected
             )
         }

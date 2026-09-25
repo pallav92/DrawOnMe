@@ -32,7 +32,8 @@ import kotlin.math.roundToInt
 @Composable
 fun ZoomControlsHud(
     transformState: CanvasTransformState,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onReset: (() -> Unit)? = null
 ) {
     val zoomPercent = (transformState.zoom * 100f).roundToInt()
     val isDefaultView = transformState.zoom == 1.0f && transformState.pan.getDistanceSquared() < 1f
@@ -66,7 +67,13 @@ fun ZoomControlsHud(
             Row(
                 modifier = Modifier
                     .clip(RoundedCornerShape(10.dp))
-                    .clickable { transformState.reset() }
+                    .clickable {
+                        if (onReset != null) {
+                            onReset()
+                        } else {
+                            transformState.reset()
+                        }
+                    }
                     .padding(horizontal = 8.dp, vertical = 4.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(4.dp)
