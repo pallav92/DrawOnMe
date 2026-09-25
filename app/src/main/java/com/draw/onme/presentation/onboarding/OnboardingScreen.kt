@@ -25,6 +25,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Draw
+import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.PhotoLibrary
 import androidx.compose.material.icons.filled.Shield
 import androidx.compose.material3.Card
@@ -61,6 +62,7 @@ import com.draw.onme.ui.theme.DrawOnMeTheme
  * - Smooth vertical scrolling activates automatically on compact or landscape viewports.
  *
  * @param onSelectFreeScribble Callback when user selects the freehand notepad.
+ * @param onSelectColoringBook Callback when user selects the coloring book studio.
  * @param onSelectStencils Callback when user selects the cartoon stencil studio.
  * @param onSelectFridge Callback when user selects the virtual fridge gallery.
  * @param modifier Optional modifier applied to the screen root.
@@ -68,6 +70,7 @@ import com.draw.onme.ui.theme.DrawOnMeTheme
 @Composable
 fun OnboardingScreen(
     onSelectFreeScribble: () -> Unit,
+    onSelectColoringBook: () -> Unit,
     onSelectStencils: () -> Unit,
     onSelectFridge: () -> Unit,
     modifier: Modifier = Modifier
@@ -88,6 +91,7 @@ fun OnboardingScreen(
             if (isLandscape) {
                 OnboardingLandscapeContent(
                     onSelectFreeScribble = onSelectFreeScribble,
+                    onSelectColoringBook = onSelectColoringBook,
                     onSelectStencils = onSelectStencils,
                     onSelectFridge = onSelectFridge
                 )
@@ -103,6 +107,7 @@ fun OnboardingScreen(
                     content = {
                         OnboardingBottomContent(
                             onSelectFreeScribble = onSelectFreeScribble,
+                            onSelectColoringBook = onSelectColoringBook,
                             onSelectStencils = onSelectStencils,
                             onSelectFridge = onSelectFridge,
                             modifier = Modifier.fillMaxWidth()
@@ -209,6 +214,7 @@ private fun AppBrandHeader(
 @Composable
 private fun OnboardingBottomContent(
     onSelectFreeScribble: () -> Unit,
+    onSelectColoringBook: () -> Unit,
     onSelectStencils: () -> Unit,
     onSelectFridge: () -> Unit,
     modifier: Modifier = Modifier
@@ -248,7 +254,20 @@ private fun OnboardingBottomContent(
 
         Spacer(modifier = Modifier.height(14.dp))
 
-        // Card 2: Learn to Draw (Geometric Stencils)
+        // Card 2: Coloring Book
+        ModeSelectionCard(
+            title = "Coloring Book",
+            subtitle = "Fill cute animals, cars, and castles with vibrant colors & magic crayons inside the lines.",
+            badgeEmoji = "🎨",
+            icon = Icons.Default.Palette,
+            containerColor = Color(0xFFE1F5FE), // Soft sky cyan
+            contentColor = Color(0xFF01579B),
+            onClick = onSelectColoringBook
+        )
+
+        Spacer(modifier = Modifier.height(14.dp))
+
+        // Card 3: Learn to Draw (Geometric Stencils)
         ModeSelectionCard(
             title = "Learn to Draw",
             subtitle = "Follow fun stencils! Trace cars, houses, rockets, and cute animals step-by-step.",
@@ -261,7 +280,7 @@ private fun OnboardingBottomContent(
 
         Spacer(modifier = Modifier.height(14.dp))
 
-        // Card 3: My Fridge Door (Gallery)
+        // Card 4: My Fridge Door (Gallery)
         ModeSelectionCard(
             title = "My Fridge Door",
             subtitle = "See all your proud masterpieces pinned on the virtual refrigerator!",
@@ -307,6 +326,7 @@ private fun ParentReassuranceBadge(
 @Composable
 private fun OnboardingLandscapeContent(
     onSelectFreeScribble: () -> Unit,
+    onSelectColoringBook: () -> Unit,
     onSelectStencils: () -> Unit,
     onSelectFridge: () -> Unit,
     modifier: Modifier = Modifier
@@ -357,6 +377,16 @@ private fun OnboardingLandscapeContent(
                 containerColor = Color(0xFFFFF3E0),
                 contentColor = Color(0xFFE65100),
                 onClick = onSelectFreeScribble
+            )
+
+            ModeSelectionCard(
+                title = "Coloring Book",
+                subtitle = "Fill cute animals, cars, and castles with vibrant colors & magic crayons inside the lines.",
+                badgeEmoji = "🎨",
+                icon = Icons.Default.Palette,
+                containerColor = Color(0xFFE1F5FE),
+                contentColor = Color(0xFF01579B),
+                onClick = onSelectColoringBook
             )
 
             ModeSelectionCard(
@@ -458,6 +488,7 @@ private fun OnboardingScreenPreview() {
     DrawOnMeTheme {
         OnboardingScreen(
             onSelectFreeScribble = {},
+            onSelectColoringBook = {},
             onSelectStencils = {},
             onSelectFridge = {}
         )

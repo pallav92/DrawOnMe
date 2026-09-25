@@ -30,6 +30,16 @@ sealed interface AppScreen {
     data class StencilDrawing(val stencilId: String) : AppScreen
 
     /**
+     * Themed coloring book album gallery.
+     */
+    data object ColoringGallery : AppScreen
+
+    /**
+     * Interactive coloring studio for a specific coloring page.
+     */
+    data class ColoringStudio(val pageId: String) : AppScreen
+
+    /**
      * Virtual refrigerator door gallery displaying child's pinned artworks.
      */
     data object FridgeGallery : AppScreen
@@ -41,6 +51,8 @@ sealed interface AppScreen {
             is FreeScribble -> "free_scribble"
             is StencilGallery -> "stencil_gallery"
             is StencilDrawing -> "stencil_drawing:${screen.stencilId}"
+            is ColoringGallery -> "coloring_gallery"
+            is ColoringStudio -> "coloring_studio:${screen.pageId}"
             is FridgeGallery -> "fridge_gallery"
         }
 
@@ -51,6 +63,8 @@ sealed interface AppScreen {
                 value == "free_scribble" -> FreeScribble
                 value == "stencil_gallery" -> StencilGallery
                 value.startsWith("stencil_drawing:") -> StencilDrawing(value.removePrefix("stencil_drawing:"))
+                value == "coloring_gallery" -> ColoringGallery
+                value.startsWith("coloring_studio:") -> ColoringStudio(value.removePrefix("coloring_studio:"))
                 value == "fridge_gallery" -> FridgeGallery
                 else -> Onboarding
             }
@@ -71,11 +85,14 @@ val AppScreen.analyticsName: String
         is AppScreen.FreeScribble -> "free_scribble"
         is AppScreen.StencilGallery -> "stencil_gallery"
         is AppScreen.StencilDrawing -> "stencil_drawing"
+        is AppScreen.ColoringGallery -> "coloring_gallery"
+        is AppScreen.ColoringStudio -> "coloring_studio"
         is AppScreen.FridgeGallery -> "fridge_gallery"
     }
 
 val AppScreen.analyticsParams: Map<String, Any>
     get() = when (this) {
         is AppScreen.StencilDrawing -> mapOf("stencil_id" to stencilId)
+        is AppScreen.ColoringStudio -> mapOf("page_id" to pageId)
         else -> emptyMap()
     }

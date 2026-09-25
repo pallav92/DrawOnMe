@@ -16,6 +16,8 @@ class AppNavigationTest {
             AppScreen.Splash,
             AppScreen.Onboarding,
             AppScreen.FreeScribble,
+            AppScreen.ColoringGallery,
+            AppScreen.ColoringStudio("happy_puppy"),
             AppScreen.StencilGallery,
             AppScreen.StencilDrawing("cozy-house"),
             AppScreen.StencilDrawing("rocket-blast-123"),

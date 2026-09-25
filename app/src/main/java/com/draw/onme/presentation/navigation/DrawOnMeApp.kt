@@ -12,8 +12,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import com.draw.onme.data.repository.FileArtworkRepository
 import com.draw.onme.data.repository.FileBoardDraftRepository
+import com.draw.onme.data.repository.FileColoringDraftRepository
+import com.draw.onme.data.repository.InMemoryColoringBookRepository
 import com.draw.onme.domain.repository.ArtworkRepository
 import com.draw.onme.domain.repository.BoardDraftRepository
+import com.draw.onme.domain.repository.ColoringBookRepository
+import com.draw.onme.domain.repository.ColoringDraftRepository
+import com.draw.onme.presentation.coloring.gallery.ColoringGalleryScreen
+import com.draw.onme.presentation.coloring.studio.ColoringStudioScreen
 import com.draw.onme.presentation.fridge.FridgeGalleryScreen
 import com.draw.onme.presentation.onboarding.OnboardingScreen
 import com.draw.onme.presentation.scribble.ScribbleScreen
@@ -30,13 +36,15 @@ import com.draw.onme.presentation.analytics.TrackScreenEngagement
 
 /**
  * Root composable hosting the app navigation stack between Onboarding,
- * Free Scribble notepad, Stencil Gallery, Stencil Drawing Studio, and My Fridge Door.
+ * Free Scribble notepad, Stencil Gallery, Coloring Studio, and My Fridge Door.
  */
 @Composable
 fun DrawOnMeApp(
     modifier: Modifier = Modifier,
     artworkRepository: ArtworkRepository? = null,
     boardDraftRepository: BoardDraftRepository? = null,
+    coloringBookRepository: ColoringBookRepository? = null,
+    coloringDraftRepository: ColoringDraftRepository? = null,
     analyticsTracker: AnalyticsTracker? = null
 ) {
     val context = LocalContext.current
@@ -45,6 +53,12 @@ fun DrawOnMeApp(
     }
     val draftRepository: BoardDraftRepository = remember {
         boardDraftRepository ?: FileBoardDraftRepository(File(context.filesDir, "board_drafts"))
+    }
+    val coloringBookRepo: ColoringBookRepository = remember {
+        coloringBookRepository ?: InMemoryColoringBookRepository()
+    }
+    val coloringDraftRepo: ColoringDraftRepository = remember {
+        coloringDraftRepository ?: FileColoringDraftRepository(File(context.filesDir, "coloring_drafts"))
     }
     val tracker: AnalyticsTracker = remember {
         analyticsTracker ?: FirebaseAnalyticsTracker.getInstance(context)
@@ -92,6 +106,10 @@ fun DrawOnMeApp(
                         tracker.trackEvent("mode_selected", mapOf("mode" to "free_scribble"))
                         backStack = backStack + AppScreen.FreeScribble
                     },
+                    onSelectColoringBook = {
+                        tracker.trackEvent("mode_selected", mapOf("mode" to "coloring_book"))
+                        backStack = backStack + AppScreen.ColoringGallery
+                    },
                     onSelectStencils = {
                         tracker.trackEvent("mode_selected", mapOf("mode" to "stencils"))
                         backStack = backStack + AppScreen.StencilGallery
@@ -108,6 +126,27 @@ fun DrawOnMeApp(
                     onNavigateBack = popBack,
                     artworkRepository = repository,
                     boardDraftRepository = draftRepository
+                )
+            }
+
+            is AppScreen.ColoringGallery -> {
+                ColoringGalleryScreen(
+                    repository = coloringBookRepo,
+                    onSelectPage = { pageId ->
+                        tracker.trackEvent("coloring_page_selected", mapOf("page_id" to pageId))
+                        backStack = backStack + AppScreen.ColoringStudio(pageId)
+                    },
+                    onNavigateBack = popBack
+                )
+            }
+
+            is AppScreen.ColoringStudio -> {
+                ColoringStudioScreen(
+                    pageId = currentScreen.pageId,
+                    onNavigateBack = popBack,
+                    repository = coloringBookRepo,
+                    draftRepository = coloringDraftRepo,
+                    artworkRepository = repository
                 )
             }
 
