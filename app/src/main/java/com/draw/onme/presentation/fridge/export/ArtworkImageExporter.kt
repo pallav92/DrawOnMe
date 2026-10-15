@@ -18,6 +18,8 @@ import android.os.Environment
 import android.provider.MediaStore
 import androidx.core.content.FileProvider
 import androidx.print.PrintHelper
+import com.draw.onme.domain.model.ArtworkBounds
+import com.draw.onme.domain.model.ArtworkCropper
 import com.draw.onme.domain.model.DrawingTool
 import com.draw.onme.domain.model.SavedArtwork
 import com.draw.onme.domain.model.Stroke
@@ -29,20 +31,6 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import kotlin.math.roundToInt
-
-/**
- * Geometric bounds for a collection of drawing strokes.
- */
-data class ArtworkBounds(
-    val minX: Float,
-    val maxX: Float,
-    val minY: Float,
-    val maxY: Float
-) {
-    val width: Float get() = (maxX - minX).coerceAtLeast(1f)
-    val height: Float get() = (maxY - minY).coerceAtLeast(1f)
-    val aspectRatio: Float get() = width / height
-}
 
 /**
  * Utility responsible for rendering [SavedArtwork] into high-resolution bitmap images,
@@ -59,26 +47,15 @@ object ArtworkImageExporter {
      * Calculates the bounding box of all visible (non-eraser) strokes in [strokes].
      * Returns null if there are no visible points.
      */
-    fun calculateBounds(strokes: List<Stroke>): ArtworkBounds? {
-        val visibleStrokes = strokes.filter { it.tool != DrawingTool.ERASER && it.points.isNotEmpty() }
-        if (visibleStrokes.isEmpty()) return null
+    fun calculateBounds(strokes: List<Stroke>): ArtworkBounds? =
+        ArtworkCropper.calculateBounds(strokes)
 
-        var minX = Float.MAX_VALUE
-        var maxX = -Float.MAX_VALUE
-        var minY = Float.MAX_VALUE
-        var maxY = -Float.MAX_VALUE
-
-        for (stroke in visibleStrokes) {
-            val halfWidth = stroke.strokeWidth / 2f
-            for (p in stroke.points) {
-                if (p.x - halfWidth < minX) minX = p.x - halfWidth
-                if (p.x + halfWidth > maxX) maxX = p.x + halfWidth
-                if (p.y - halfWidth < minY) minY = p.y - halfWidth
-                if (p.y + halfWidth > maxY) maxY = p.y + halfWidth
-            }
-        }
-        return ArtworkBounds(minX, maxX, minY, maxY)
-    }
+    /**
+     * Calculates the bounding box of all visible content (strokes, vector fills, outlines) in [artwork].
+     * Returns null if there is no visible content.
+     */
+    fun calculateBounds(artwork: SavedArtwork): ArtworkBounds? =
+        ArtworkCropper.calculateBounds(artwork.strokes, artwork.vectorFills, artwork.vectorOutlines)
 
     /**
      * Renders [artwork] into a high-resolution [Bitmap] on a white canvas.
@@ -92,7 +69,7 @@ object ArtworkImageExporter {
         targetWidth: Int = DEFAULT_BITMAP_WIDTH,
         includeFooter: Boolean = true
     ): Bitmap {
-        val bounds = calculateBounds(artwork.strokes)
+        val bounds = calculateBounds(artwork)
         val boundsAspectRatio = bounds?.aspectRatio?.coerceIn(0.70f, 1.45f) ?: 1.0f
 
         val drawingHeight = (targetWidth / boundsAspectRatio).roundToInt()
@@ -119,6 +96,25 @@ object ArtworkImageExporter {
             val strokeBitmap = Bitmap.createBitmap(targetWidth, drawingHeight, Bitmap.Config.ARGB_8888)
             val strokeCanvas = Canvas(strokeBitmap)
 
+            // Layer 1: Vector Fills (closed polygons with solid fill)
+            val fillPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                style = Paint.Style.FILL
+            }
+            for (fill in artwork.vectorFills) {
+                if (fill.points.size < 3) continue
+                fillPaint.color = fill.color.argb.toInt()
+                val path = Path()
+                val first = fill.points[0]
+                path.moveTo(first.x * scale + offsetX, first.y * scale + offsetY)
+                for (i in 1 until fill.points.size) {
+                    val pt = fill.points[i]
+                    path.lineTo(pt.x * scale + offsetX, pt.y * scale + offsetY)
+                }
+                path.close()
+                strokeCanvas.drawPath(path, fillPaint)
+            }
+
+            // Layer 2: Freehand strokes and erasers
             val penPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
                 style = Paint.Style.STROKE
                 strokeCap = Paint.Cap.ROUND
@@ -150,6 +146,13 @@ object ArtworkImageExporter {
                         paint.strokeWidth / 2f,
                         paint
                     )
+                } else if (stroke.points.size == 2) {
+                    val path = Path()
+                    val p0 = stroke.points[0]
+                    val p1 = stroke.points[1]
+                    path.moveTo(p0.x * scale + offsetX, p0.y * scale + offsetY)
+                    path.lineTo(p1.x * scale + offsetX, p1.y * scale + offsetY)
+                    strokeCanvas.drawPath(path, paint)
                 } else {
                     val path = Path()
                     val first = stroke.points[0]
@@ -173,9 +176,33 @@ object ArtworkImageExporter {
                 }
             }
 
+            // Layer 3: Vector Outlines (sharp geometric outlines on top)
+            val outlinePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                style = Paint.Style.STROKE
+                strokeCap = Paint.Cap.ROUND
+                strokeJoin = Paint.Join.ROUND
+            }
+            for (outline in artwork.vectorOutlines) {
+                if (outline.points.isEmpty()) continue
+                outlinePaint.color = outline.color.argb.toInt()
+                outlinePaint.strokeWidth = (outline.strokeWidth * scale).coerceIn(2f, 36f)
+                val path = Path()
+                val first = outline.points[0]
+                path.moveTo(first.x * scale + offsetX, first.y * scale + offsetY)
+                for (i in 1 until outline.points.size) {
+                    val pt = outline.points[i]
+                    path.lineTo(pt.x * scale + offsetX, pt.y * scale + offsetY)
+                }
+                if (outline.isClosed) {
+                    path.close()
+                }
+                strokeCanvas.drawPath(path, outlinePaint)
+            }
+
             canvas.drawBitmap(strokeBitmap, 0f, 0f, null)
             strokeBitmap.recycle()
         }
+
 
         // Render keepsake footer
         if (includeFooter) {

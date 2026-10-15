@@ -5,6 +5,8 @@ import com.draw.onme.domain.model.Point
 import com.draw.onme.domain.model.SavedArtwork
 import com.draw.onme.domain.model.Stroke
 import com.draw.onme.domain.model.StrokeColor
+import com.draw.onme.domain.model.VectorFill
+import com.draw.onme.domain.model.VectorOutline
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
 import org.junit.After
@@ -141,5 +143,67 @@ class FileArtworkRepositoryTest {
         assertEquals(2, restoredStroke.points.size)
         assertEquals(0.12f, restoredStroke.points[0].x, 0.001f)
         assertEquals(0.34f, restoredStroke.points[0].y, 0.001f)
+    }
+
+    @Test
+    fun jsonRoundtrip_preservesVectorFillsAndOutlines() {
+        val fill = VectorFill(
+            points = listOf(Point(10f, 10f), Point(50f, 10f), Point(50f, 50f)),
+            color = StrokeColor.Red
+        )
+        val outline = VectorOutline(
+            points = listOf(Point(10f, 10f), Point(50f, 10f), Point(50f, 50f)),
+            strokeWidth = 6f,
+            isClosed = true,
+            color = StrokeColor.Black
+        )
+        val artwork = SavedArtwork(
+            id = "vector_art",
+            title = "Brave Fire Truck",
+            createdAt = 1710000000000L,
+            strokes = emptyList(),
+            stencilId = "coloring_fire_truck",
+            magnetEmoji = "🚒",
+            vectorFills = listOf(fill),
+            vectorOutlines = listOf(outline)
+        )
+
+        val json = FileArtworkRepository.artworkToJson(artwork)
+        val restored = FileArtworkRepository.jsonToArtwork(json)
+
+        assertEquals(artwork.id, restored.id)
+        assertEquals("Brave Fire Truck", restored.title)
+        assertEquals(1, restored.vectorFills.size)
+        assertEquals(StrokeColor.Red.argb, restored.vectorFills.first().color.argb)
+        assertEquals(3, restored.vectorFills.first().points.size)
+
+        assertEquals(1, restored.vectorOutlines.size)
+        val restoredOutline = restored.vectorOutlines.first()
+        assertEquals(6f, restoredOutline.strokeWidth, 0.001f)
+        assertTrue(restoredOutline.isClosed)
+        assertEquals(StrokeColor.Black.argb, restoredOutline.color.argb)
+        assertEquals(3, restoredOutline.points.size)
+    }
+
+    @Test
+    fun jsonToArtwork_legacyJsonWithoutVectors_loadsCleanly() {
+        val legacyJsonString = """
+            {
+              "id": "legacy_1",
+              "title": "Old Drawing",
+              "createdAt": 1690000000000,
+              "magnetEmoji": "⭐️",
+              "strokes": []
+            }
+        """.trimIndent()
+
+        val json = org.json.JSONObject(legacyJsonString)
+        val artwork = FileArtworkRepository.jsonToArtwork(json)
+
+        assertEquals("legacy_1", artwork.id)
+        assertEquals("Old Drawing", artwork.title)
+        assertTrue(artwork.strokes.isEmpty())
+        assertTrue(artwork.vectorFills.isEmpty())
+        assertTrue(artwork.vectorOutlines.isEmpty())
     }
 }

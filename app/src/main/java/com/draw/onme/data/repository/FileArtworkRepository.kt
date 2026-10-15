@@ -5,6 +5,8 @@ import com.draw.onme.domain.model.Point
 import com.draw.onme.domain.model.SavedArtwork
 import com.draw.onme.domain.model.Stroke
 import com.draw.onme.domain.model.StrokeColor
+import com.draw.onme.domain.model.VectorFill
+import com.draw.onme.domain.model.VectorOutline
 import com.draw.onme.domain.repository.ArtworkRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
@@ -106,6 +108,45 @@ class FileArtworkRepository(
                 strokesArray.put(strokeObj)
             }
             json.put("strokes", strokesArray)
+
+            if (artwork.vectorFills.isNotEmpty()) {
+                val fillsArray = JSONArray()
+                for (fill in artwork.vectorFills) {
+                    val fillObj = JSONObject()
+                    fillObj.put("color", fill.color.argb)
+                    val pointsArray = JSONArray()
+                    for (p in fill.points) {
+                        val pObj = JSONObject()
+                        pObj.put("x", p.x.toDouble())
+                        pObj.put("y", p.y.toDouble())
+                        pointsArray.put(pObj)
+                    }
+                    fillObj.put("points", pointsArray)
+                    fillsArray.put(fillObj)
+                }
+                json.put("vectorFills", fillsArray)
+            }
+
+            if (artwork.vectorOutlines.isNotEmpty()) {
+                val outlinesArray = JSONArray()
+                for (outline in artwork.vectorOutlines) {
+                    val outlineObj = JSONObject()
+                    outlineObj.put("strokeWidth", outline.strokeWidth.toDouble())
+                    outlineObj.put("isClosed", outline.isClosed)
+                    outlineObj.put("color", outline.color.argb)
+                    val pointsArray = JSONArray()
+                    for (p in outline.points) {
+                        val pObj = JSONObject()
+                        pObj.put("x", p.x.toDouble())
+                        pObj.put("y", p.y.toDouble())
+                        pointsArray.put(pObj)
+                    }
+                    outlineObj.put("points", pointsArray)
+                    outlinesArray.put(outlineObj)
+                }
+                json.put("vectorOutlines", outlinesArray)
+            }
+
             return json
         }
 
@@ -142,13 +183,49 @@ class FileArtworkRepository(
                 )
             }
 
+            val vectorFills = mutableListOf<VectorFill>()
+            val fillsArray = json.optJSONArray("vectorFills")
+            if (fillsArray != null) {
+                for (i in 0 until fillsArray.length()) {
+                    val fObj = fillsArray.getJSONObject(i)
+                    val color = StrokeColor(fObj.getLong("color"))
+                    val pointsArray = fObj.getJSONArray("points")
+                    val points = mutableListOf<Point>()
+                    for (j in 0 until pointsArray.length()) {
+                        val pObj = pointsArray.getJSONObject(j)
+                        points.add(Point(pObj.getDouble("x").toFloat(), pObj.getDouble("y").toFloat()))
+                    }
+                    vectorFills.add(VectorFill(points, color))
+                }
+            }
+
+            val vectorOutlines = mutableListOf<VectorOutline>()
+            val outlinesArray = json.optJSONArray("vectorOutlines")
+            if (outlinesArray != null) {
+                for (i in 0 until outlinesArray.length()) {
+                    val oObj = outlinesArray.getJSONObject(i)
+                    val strokeWidth = oObj.optDouble("strokeWidth", 4.0).toFloat()
+                    val isClosed = oObj.optBoolean("isClosed", true)
+                    val color = StrokeColor(oObj.optLong("color", StrokeColor.Black.argb))
+                    val pointsArray = oObj.getJSONArray("points")
+                    val points = mutableListOf<Point>()
+                    for (j in 0 until pointsArray.length()) {
+                        val pObj = pointsArray.getJSONObject(j)
+                        points.add(Point(pObj.getDouble("x").toFloat(), pObj.getDouble("y").toFloat()))
+                    }
+                    vectorOutlines.add(VectorOutline(points, strokeWidth, isClosed, color))
+                }
+            }
+
             return SavedArtwork(
                 id = id,
                 title = title,
                 createdAt = createdAt,
                 strokes = strokes,
                 stencilId = stencilId,
-                magnetEmoji = magnetEmoji
+                magnetEmoji = magnetEmoji,
+                vectorFills = vectorFills,
+                vectorOutlines = vectorOutlines
             )
         }
     }

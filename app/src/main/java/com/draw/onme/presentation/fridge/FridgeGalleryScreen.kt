@@ -67,12 +67,14 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.graphics.drawscope.Fill
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.draw.onme.domain.model.ArtworkCropper
 import com.draw.onme.domain.model.DrawingTool
 import com.draw.onme.domain.model.SavedArtwork
 import com.draw.onme.domain.model.Stroke as DomainStroke
@@ -384,7 +386,7 @@ private fun ArtworkShareDialog(
                         .clip(RoundedCornerShape(16.dp))
                 ) {
                     ArtworkThumbnailCanvas(
-                        strokes = artwork.strokes,
+                        artwork = artwork,
                         modifier = Modifier.fillMaxSize()
                     )
                 }
@@ -471,31 +473,16 @@ private fun PinnedArtworkCard(
         formatter.format(Date(artwork.createdAt))
     }
 
-    val visibleStrokes = remember(artwork.strokes) {
-        artwork.strokes.filter { it.tool != DrawingTool.ERASER && it.points.isNotEmpty() }
+    val bounds = remember(artwork) {
+        ArtworkCropper.calculateBounds(
+            artwork.strokes,
+            artwork.vectorFills,
+            artwork.vectorOutlines
+        )
     }
 
-    val artworkAspectRatio = remember(visibleStrokes) {
-        if (visibleStrokes.isEmpty()) {
-            1.2f
-        } else {
-            var minX = Float.MAX_VALUE
-            var maxX = -Float.MAX_VALUE
-            var minY = Float.MAX_VALUE
-            var maxY = -Float.MAX_VALUE
-            for (s in visibleStrokes) {
-                val hw = s.strokeWidth / 2f
-                for (p in s.points) {
-                    if (p.x - hw < minX) minX = p.x - hw
-                    if (p.x + hw > maxX) maxX = p.x + hw
-                    if (p.y - hw < minY) minY = p.y - hw
-                    if (p.y + hw > maxY) maxY = p.y + hw
-                }
-            }
-            val spanX = (maxX - minX).coerceAtLeast(1f)
-            val spanY = (maxY - minY).coerceAtLeast(1f)
-            (spanX / spanY).coerceIn(0.85f, 1.45f)
-        }
+    val artworkAspectRatio = remember(bounds) {
+        bounds?.aspectRatio?.coerceIn(0.85f, 1.45f) ?: 1.2f
     }
 
     Box(
@@ -526,7 +513,7 @@ private fun PinnedArtworkCard(
                         .background(Color(0xFFFAFAFA))
                 ) {
                     ArtworkThumbnailCanvas(
-                        strokes = artwork.strokes,
+                        artwork = artwork,
                         modifier = Modifier.fillMaxSize()
                     )
                 }
@@ -620,44 +607,50 @@ private fun PinnedArtworkCard(
 
 @Composable
 private fun ArtworkThumbnailCanvas(
-    strokes: List<DomainStroke>,
+    artwork: SavedArtwork,
     modifier: Modifier = Modifier
 ) {
     Canvas(
         modifier = modifier.graphicsLayer(compositingStrategy = CompositingStrategy.Offscreen)
     ) {
-        val visibleStrokes = strokes.filter { it.tool != DrawingTool.ERASER && it.points.isNotEmpty() }
-        if (visibleStrokes.isEmpty()) return@Canvas
+        val bounds = ArtworkCropper.calculateBounds(
+            artwork.strokes,
+            artwork.vectorFills,
+            artwork.vectorOutlines
+        ) ?: return@Canvas
 
         val w = size.width
         val h = size.height
         if (w <= 0f || h <= 0f) return@Canvas
 
-        // Calculate bounding box of VISIBLE stroke points (ignore erasers so erasers never expand bounds)
-        var minX = Float.MAX_VALUE
-        var maxX = -Float.MAX_VALUE
-        var minY = Float.MAX_VALUE
-        var maxY = -Float.MAX_VALUE
-
-        for (stroke in visibleStrokes) {
-            val halfWidth = stroke.strokeWidth / 2f
-            for (p in stroke.points) {
-                if (p.x - halfWidth < minX) minX = p.x - halfWidth
-                if (p.x + halfWidth > maxX) maxX = p.x + halfWidth
-                if (p.y - halfWidth < minY) minY = p.y - halfWidth
-                if (p.y + halfWidth > maxY) maxY = p.y + halfWidth
-            }
-        }
-
-        val strokeSpanX = (maxX - minX).coerceAtLeast(1f)
-        val strokeSpanY = (maxY - minY).coerceAtLeast(1f)
+        val strokeSpanX = bounds.width
+        val strokeSpanY = bounds.height
 
         // Scale to fill 90% of thumbnail dimensions
         val scale = minOf((w * 0.90f) / strokeSpanX, (h * 0.90f) / strokeSpanY)
-        val centerOffsetX = (w - strokeSpanX * scale) / 2f - minX * scale
-        val centerOffsetY = (h - strokeSpanY * scale) / 2f - minY * scale
+        val centerOffsetX = (w - strokeSpanX * scale) / 2f - bounds.minX * scale
+        val centerOffsetY = (h - strokeSpanY * scale) / 2f - bounds.minY * scale
 
-        for (stroke in strokes) {
+        // Layer 1: Vector Fills (closed polygons with solid fill)
+        for (fill in artwork.vectorFills) {
+            if (fill.points.size < 3) continue
+            val path = Path()
+            val first = fill.points[0]
+            path.moveTo(first.x * scale + centerOffsetX, first.y * scale + centerOffsetY)
+            for (i in 1 until fill.points.size) {
+                val pt = fill.points[i]
+                path.lineTo(pt.x * scale + centerOffsetX, pt.y * scale + centerOffsetY)
+            }
+            path.close()
+            drawPath(
+                path = path,
+                color = Color(fill.color.argb),
+                style = Fill
+            )
+        }
+
+        // Layer 2: Freehand crayon strokes and erasers
+        for (stroke in artwork.strokes) {
             if (stroke.points.isEmpty()) continue
 
             val isEraser = stroke.tool == DrawingTool.ERASER
@@ -671,6 +664,22 @@ private fun ArtworkThumbnailCanvas(
                     color = drawColor,
                     radius = strokeWidth / 2f,
                     center = Offset(pt.x * scale + centerOffsetX, pt.y * scale + centerOffsetY),
+                    blendMode = blendMode
+                )
+            } else if (stroke.points.size == 2) {
+                val path = Path()
+                val p0 = stroke.points[0]
+                val p1 = stroke.points[1]
+                path.moveTo(p0.x * scale + centerOffsetX, p0.y * scale + centerOffsetY)
+                path.lineTo(p1.x * scale + centerOffsetX, p1.y * scale + centerOffsetY)
+                drawPath(
+                    path = path,
+                    color = drawColor,
+                    style = Stroke(
+                        width = strokeWidth,
+                        cap = StrokeCap.Round,
+                        join = StrokeJoin.Round
+                    ),
                     blendMode = blendMode
                 )
             } else {
@@ -703,6 +712,31 @@ private fun ArtworkThumbnailCanvas(
                     blendMode = blendMode
                 )
             }
+        }
+
+        // Layer 3: Vector Outlines (sharp geometric outlines on top)
+        for (outline in artwork.vectorOutlines) {
+            if (outline.points.isEmpty()) continue
+            val outlineWidth = (outline.strokeWidth * scale).coerceIn(2f, 18f)
+            val path = Path()
+            val first = outline.points[0]
+            path.moveTo(first.x * scale + centerOffsetX, first.y * scale + centerOffsetY)
+            for (i in 1 until outline.points.size) {
+                val pt = outline.points[i]
+                path.lineTo(pt.x * scale + centerOffsetX, pt.y * scale + centerOffsetY)
+            }
+            if (outline.isClosed) {
+                path.close()
+            }
+            drawPath(
+                path = path,
+                color = Color(outline.color.argb),
+                style = Stroke(
+                    width = outlineWidth,
+                    cap = StrokeCap.Round,
+                    join = StrokeJoin.Round
+                )
+            )
         }
     }
 }

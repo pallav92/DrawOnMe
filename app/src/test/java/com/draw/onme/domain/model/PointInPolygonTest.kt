@@ -54,4 +54,26 @@ class PointInPolygonTest {
         assertFalse(PointInPolygon.contains(Point(0.5f, 0.5f), emptyList()))
         assertFalse(PointInPolygon.contains(Point(0.5f, 0.5f), listOf(Point(0f, 0f), Point(1f, 1f))))
     }
+
+    @Test
+    fun testCalculateArea_squareAndTriangle() {
+        val square = listOf(
+            Point(0.2f, 0.2f),
+            Point(0.8f, 0.2f),
+            Point(0.8f, 0.8f),
+            Point(0.2f, 0.8f)
+        )
+        // 0.6 * 0.6 = 0.36
+        org.junit.Assert.assertEquals(0.36f, PointInPolygon.calculateArea(square), 0.001f)
+
+        val triangle = listOf(
+            Point(0.0f, 0.0f),
+            Point(1.0f, 0.0f),
+            Point(0.5f, 1.0f)
+        )
+        // 0.5 * 1.0 * 1.0 = 0.5
+        org.junit.Assert.assertEquals(0.5f, PointInPolygon.calculateArea(triangle), 0.001f)
+
+        org.junit.Assert.assertEquals(0.0f, PointInPolygon.calculateArea(emptyList()), 0.0001f)
+    }
 }

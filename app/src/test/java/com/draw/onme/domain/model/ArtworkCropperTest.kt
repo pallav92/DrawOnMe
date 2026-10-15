@@ -134,4 +134,61 @@ class ArtworkCropperTest {
         assertTrue("Point X should be normalized near origin", firstPoint.x < 100f)
         assertTrue("Point Y should be normalized near origin", firstPoint.y < 100f)
     }
+
+    @Test
+    fun calculateBounds_combinesStrokesFillsAndOutlines() {
+        val stroke = Stroke(
+            points = listOf(Point(100f, 100f)),
+            color = StrokeColor.Red,
+            strokeWidth = 10f
+        )
+        val fill = VectorFill(
+            points = listOf(Point(200f, 200f), Point(300f, 200f), Point(300f, 300f)),
+            color = StrokeColor.Blue
+        )
+        val outline = VectorOutline(
+            points = listOf(Point(50f, 50f), Point(400f, 400f)),
+            strokeWidth = 4f
+        )
+
+        val bounds = ArtworkCropper.calculateBounds(
+            strokes = listOf(stroke),
+            vectorFills = listOf(fill),
+            vectorOutlines = listOf(outline)
+        )
+
+        assertNotNull(bounds)
+        // outline extends from (50 - 2, 50 - 2) = 48 to (400 + 2, 400 + 2) = 402
+        assertEquals(48f, bounds!!.minX, 0.01f)
+        assertEquals(48f, bounds.minY, 0.01f)
+        assertEquals(402f, bounds.maxX, 0.01f)
+        assertEquals(402f, bounds.maxY, 0.01f)
+    }
+
+    @Test
+    fun cropArtworkContent_withFillsAndOutlines_normalizesCoordinates() {
+        val fill = VectorFill(
+            points = listOf(Point(500f, 500f), Point(600f, 500f), Point(600f, 600f)),
+            color = StrokeColor.Yellow
+        )
+        val outline = VectorOutline(
+            points = listOf(Point(500f, 500f), Point(600f, 600f)),
+            strokeWidth = 4f
+        )
+
+        val cropped = ArtworkCropper.cropArtworkContent(
+            strokes = emptyList(),
+            vectorFills = listOf(fill),
+            vectorOutlines = listOf(outline),
+            padding = 10f
+        )
+
+        assertEquals(1, cropped.vectorFills.size)
+        assertEquals(1, cropped.vectorOutlines.size)
+
+        // minX with outline halfwidth 2 is 498; cropMinX = 498 - 10 = 488
+        val firstFillPt = cropped.vectorFills[0].points[0]
+        assertEquals(500f - 488f, firstFillPt.x, 0.01f) // 12f
+        assertEquals(500f - 488f, firstFillPt.y, 0.01f) // 12f
+    }
 }

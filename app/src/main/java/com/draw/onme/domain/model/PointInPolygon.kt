@@ -38,4 +38,19 @@ object PointInPolygon {
 
         return inside
     }
+
+    /**
+     * Calculates the 2D polygonal area of [polygon] vertices using the Shoelace formula.
+     * Returns the absolute area.
+     */
+    fun calculateArea(polygon: List<Point>): Float {
+        if (polygon.size < 3) return 0f
+        var sum = 0f
+        val n = polygon.size
+        for (i in 0 until n) {
+            val j = (i + 1) % n
+            sum += (polygon[i].x * polygon[j].y) - (polygon[j].x * polygon[i].y)
+        }
+        return kotlin.math.abs(sum) / 2f
+    }
 }
