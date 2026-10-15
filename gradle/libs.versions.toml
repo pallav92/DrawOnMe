@@ -15,8 +15,11 @@ coreSplashscreen = "1.0.1"
 print = "1.0.0"
 googleServices = "4.5.0"
 firebaseBom = "34.19.0"
+mlkitDigitalInk = "19.0.0"
 
 [libraries]
+mlkit-digital-ink = { group = "com.google.mlkit", name = "digital-ink-recognition", version.ref = "mlkitDigitalInk" }
+
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
 junit = { group = "junit", name = "junit", version.ref = "junit" }
 androidx-junit = { group = "androidx.test.ext", name = "junit", version.ref = "junitVersion" }
