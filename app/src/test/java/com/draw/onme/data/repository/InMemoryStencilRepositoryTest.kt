@@ -20,7 +20,7 @@ class InMemoryStencilRepositoryTest {
     fun getStencils_returnsPredefinedGeometricTemplates() {
         val stencils = repository.getStencils()
 
-        assertEquals(8, stencils.size)
+        assertEquals(16, stencils.size)
         val ids = stencils.map { it.id }.toSet()
         assertTrue(ids.contains("cozy_house"))
         assertTrue(ids.contains("zooming_car"))
@@ -30,6 +30,14 @@ class InMemoryStencilRepositoryTest {
         assertTrue(ids.contains("cute_teddy"))
         assertTrue(ids.contains("playful_kitty"))
         assertTrue(ids.contains("cartoon_mouse"))
+        assertTrue(ids.contains("bicycle"))
+        assertTrue(ids.contains("airplane"))
+        assertTrue(ids.contains("swimming_fish"))
+        assertTrue(ids.contains("flutter_butterfly"))
+        assertTrue(ids.contains("friendly_duck"))
+        assertTrue(ids.contains("blooming_flower"))
+        assertTrue(ids.contains("crisp_apple"))
+        assertTrue(ids.contains("sweet_ice_cream"))
     }
 
     @Test
