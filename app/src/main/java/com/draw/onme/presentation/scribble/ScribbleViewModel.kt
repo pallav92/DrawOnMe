@@ -3,11 +3,17 @@ package com.draw.onme.presentation.scribble
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import com.draw.onme.domain.classifier.DoodleClassifier
+import com.draw.onme.data.classifier.StructuralDoodleClassifier
+import com.draw.onme.domain.model.DoodlePrediction
 import com.draw.onme.domain.model.DrawingTool
 import com.draw.onme.domain.model.Point
+import com.draw.onme.domain.model.PupMood
 import com.draw.onme.domain.model.Stroke
 import com.draw.onme.domain.model.StrokeColor
 import com.draw.onme.domain.repository.BoardDraftRepository
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -21,14 +27,17 @@ import kotlinx.coroutines.launch
  *
  * @param boardId Unique board identifier (e.g. "magic_doodle", "stencil_cozy-house").
  * @param boardDraftRepository Optional repository for loading and saving board strokes.
+ * @param doodleClassifier On-device classifier for doodle identification.
  */
 class ScribbleViewModel(
     val boardId: String = BOARD_MAGIC_DOODLE,
-    private val boardDraftRepository: BoardDraftRepository? = null
+    private val boardDraftRepository: BoardDraftRepository? = null,
+    private val doodleClassifier: DoodleClassifier = StructuralDoodleClassifier()
 ) : ViewModel() {
 
     private val undoHistory: ArrayDeque<List<Stroke>> = ArrayDeque()
     private val redoHistory: ArrayDeque<List<Stroke>> = ArrayDeque()
+    private var classificationJob: Job? = null
 
     private val _uiState: MutableStateFlow<ScribbleUiState> = MutableStateFlow(ScribbleUiState())
     val uiState: StateFlow<ScribbleUiState> = _uiState.asStateFlow()
@@ -39,6 +48,7 @@ class ScribbleViewModel(
                 val saved = boardDraftRepository.getBoardStrokes(boardId)
                 if (saved.isNotEmpty()) {
                     _uiState.update { it.copy(strokes = saved) }
+                    scheduleClassification(saved)
                 }
             }
         }
@@ -58,6 +68,8 @@ class ScribbleViewModel(
             is ScribbleAction.RequestClearCanvas -> handleRequestClear()
             is ScribbleAction.ConfirmClearCanvas -> handleConfirmClear()
             is ScribbleAction.DismissClearCanvas -> handleDismissClear()
+            is ScribbleAction.ConfirmPupGuess -> handleConfirmPupGuess()
+            is ScribbleAction.DismissPupGuess -> handleDismissPupGuess()
         }
     }
 
@@ -108,6 +120,7 @@ class ScribbleViewModel(
             )
         }
         persistBoardStrokes(updatedStrokes)
+        scheduleClassification(updatedStrokes)
     }
 
     private fun handleCancelStroke() {
@@ -150,10 +163,12 @@ class ScribbleViewModel(
                 strokes = previousSnapshot,
                 currentStroke = null,
                 canUndo = undoHistory.isNotEmpty(),
-                canRedo = true
+                canRedo = true,
+                isPupGuessVisible = false
             )
         }
         persistBoardStrokes(previousSnapshot)
+        scheduleClassification(previousSnapshot)
     }
 
     private fun handleRedo() {
@@ -167,10 +182,12 @@ class ScribbleViewModel(
                 strokes = nextSnapshot,
                 currentStroke = null,
                 canUndo = true,
-                canRedo = redoHistory.isNotEmpty()
+                canRedo = redoHistory.isNotEmpty(),
+                isPupGuessVisible = false
             )
         }
         persistBoardStrokes(nextSnapshot)
+        scheduleClassification(nextSnapshot)
     }
 
     private fun handleRequestClear() {
@@ -180,6 +197,7 @@ class ScribbleViewModel(
     }
 
     private fun handleConfirmClear() {
+        classificationJob?.cancel()
         if (_uiState.value.strokes.isNotEmpty()) {
             pushToUndoHistory(_uiState.value.strokes)
             redoHistory.clear()
@@ -190,7 +208,12 @@ class ScribbleViewModel(
                 currentStroke = null,
                 canUndo = undoHistory.isNotEmpty(),
                 canRedo = false,
-                showClearDialog = false
+                showClearDialog = false,
+                isPupGuessVisible = false,
+                activePupGuess = null,
+                pupMood = PupMood.IDLE,
+                pupPraiseMessage = null,
+                dismissedPredictions = emptySet()
             )
         }
         persistBoardStrokes(emptyList())
@@ -198,6 +221,68 @@ class ScribbleViewModel(
 
     private fun handleDismissClear() {
         _uiState.update { it.copy(showClearDialog = false) }
+    }
+
+    private fun handleConfirmPupGuess() {
+        val guess = _uiState.value.activePupGuess
+        val praise = guess?.let {
+            "Woof-hoo! 🎉 You drew a ${it.category.displayName}!"
+        } ?: "Woof-hoo! 🎉 Pawsome drawing!"
+
+        _uiState.update {
+            it.copy(
+                isPupGuessVisible = false,
+                pupMood = PupMood.PROUD,
+                pupPraiseMessage = praise
+            )
+        }
+
+        viewModelScope.launch {
+            delay(3500)
+            _uiState.update {
+                it.copy(
+                    pupMood = PupMood.IDLE,
+                    pupPraiseMessage = null
+                )
+            }
+        }
+    }
+
+    private fun handleDismissPupGuess() {
+        val currentId = _uiState.value.activePupGuess?.category?.id
+        _uiState.update {
+            it.copy(
+                isPupGuessVisible = false,
+                pupMood = PupMood.IDLE,
+                dismissedPredictions = if (currentId != null) it.dismissedPredictions + currentId else it.dismissedPredictions
+            )
+        }
+    }
+
+    private fun scheduleClassification(strokes: List<Stroke>) {
+        if (boardId != BOARD_MAGIC_DOODLE || strokes.isEmpty()) {
+            return
+        }
+
+        classificationJob?.cancel()
+        classificationJob = viewModelScope.launch {
+            delay(300) // Debounce touch burst
+            val predictions = doodleClassifier.classify(strokes)
+            val top = predictions.firstOrNull()
+            val dismissed = _uiState.value.dismissedPredictions
+
+            com.draw.onme.data.classifier.DoodleLogger.logPredictions(predictions, dismissed)
+
+            if (top != null && top.confidence >= DoodlePrediction.CONFIDENCE_DECISION_THRESHOLD && top.category.id !in dismissed) {
+                _uiState.update {
+                    it.copy(
+                        activePupGuess = top,
+                        isPupGuessVisible = true,
+                        pupMood = PupMood.EXCITED
+                    )
+                }
+            }
+        }
     }
 
     private fun pushToUndoHistory(snapshot: List<Stroke>) {
@@ -224,12 +309,18 @@ class ScribbleViewModel(
 
         fun provideFactory(
             boardId: String,
-            repository: BoardDraftRepository? = null
+            repository: BoardDraftRepository? = null,
+            classifier: DoodleClassifier = StructuralDoodleClassifier()
         ): ViewModelProvider.Factory = object : ViewModelProvider.Factory {
             @Suppress("UNCHECKED_CAST")
             override fun <T : ViewModel> create(modelClass: Class<T>): T {
-                return ScribbleViewModel(boardId = boardId, boardDraftRepository = repository) as T
+                return ScribbleViewModel(
+                    boardId = boardId,
+                    boardDraftRepository = repository,
+                    doodleClassifier = classifier
+                ) as T
             }
         }
     }
 }
+

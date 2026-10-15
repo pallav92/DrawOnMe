@@ -22,6 +22,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -68,11 +69,16 @@ fun StencilGalleryScreen(
     repository: StencilRepository = remember { InMemoryStencilRepository() }
 ) {
     val stencils = remember { repository.getStencils() }
-    var selectedCategory by remember { mutableStateOf("All") }
-    val categories = listOf("All", "Vehicles & Things", "Animals & Friends")
+    var selectedCategory by remember { mutableStateOf("⭐ All") }
+    val categories = listOf("⭐ All", "🐾 Animals", "🚀 Vehicles", "🌿 Nature")
 
     val filteredStencils = remember(selectedCategory, stencils) {
-        if (selectedCategory == "All") stencils else stencils.filter { it.category == selectedCategory }
+        when (selectedCategory) {
+            "🐾 Animals" -> stencils.filter { it.category == "Animals & Friends" }
+            "🚀 Vehicles" -> stencils.filter { it.category == "Vehicles & Things" }
+            "🌿 Nature" -> stencils.filter { it.category == "Nature & Food" }
+            else -> stencils
+        }
     }
     val isLandscape = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
 
@@ -117,7 +123,7 @@ fun StencilGalleryScreen(
                             }
                             Spacer(modifier = Modifier.width(4.dp))
                             Text(
-                                text = "Choose a Stencil 🎨",
+                                text = "Pup's Art School 🐾",
                                 style = MaterialTheme.typography.titleMedium.copy(
                                     fontWeight = FontWeight.Bold
                                 )
@@ -174,7 +180,7 @@ fun StencilGalleryScreen(
                             }
                             Spacer(modifier = Modifier.width(4.dp))
                             Text(
-                                text = "Choose a Stencil 🎨",
+                                text = "Pup's Art School 🐾",
                                 style = MaterialTheme.typography.titleMedium.copy(
                                     fontWeight = FontWeight.Bold
                                 )
@@ -241,58 +247,45 @@ private fun StencilCard(
     Card(
         modifier = modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(20.dp))
+            .clip(RoundedCornerShape(24.dp))
             .clickable(onClick = onClick),
-        shape = RoundedCornerShape(20.dp),
+        shape = RoundedCornerShape(24.dp),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
         ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        elevation = CardDefaults.cardElevation(defaultElevation = 3.dp)
     ) {
         Column(
-            modifier = Modifier.padding(16.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 22.dp, horizontal = 12.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
         ) {
-            Text(
-                text = stencil.iconEmoji,
-                fontSize = 54.sp
-            )
+            Box(
+                modifier = Modifier
+                    .size(76.dp)
+                    .clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.surfaceContainerHighest),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = stencil.iconEmoji,
+                    fontSize = 44.sp
+                )
+            }
 
-            Spacer(modifier = Modifier.height(10.dp))
+            Spacer(modifier = Modifier.height(12.dp))
 
             Text(
                 text = stencil.title,
                 style = MaterialTheme.typography.titleMedium.copy(
-                    fontWeight = FontWeight.Bold
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 16.sp
                 ),
-                color = MaterialTheme.colorScheme.onSurface
+                color = MaterialTheme.colorScheme.onSurface,
+                maxLines = 1
             )
-
-            Spacer(modifier = Modifier.height(4.dp))
-
-            Text(
-                text = stencil.description,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 2
-            )
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                SuggestionChip(
-                    onClick = onClick,
-                    label = {
-                        Text(
-                            text = stencil.difficulty,
-                            style = MaterialTheme.typography.labelSmall
-                        )
-                    }
-                )
-            }
         }
     }
 }

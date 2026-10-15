@@ -105,13 +105,10 @@ import kotlin.math.round
 import kotlin.math.roundToInt
 
 /**
- * Collapsible drawing toolbar that rolls back into a compact, movable FAB.
- * - Only movable when collapsed:
- *   - The FAB can be dragged anywhere freely across the canvas in 2D.
- *   - When released or thrown, it snaps and attaches directly to the left or right border of the screen.
- *   - It NEVER stays in between on the canvas.
- * - When tapped while collapsed: Expands the toolbar at the current dock location.
- * - When expanded: The FAB is NOT movable. Clicking it collapses the toolbar back into the FAB at that exact border location.
+ * Anchored bottom drawing toolbar that stays stably docked at the bottom of the screen.
+ * - Sits firmly above system navigation bars without drifting.
+ * - Features a gentle, child-friendly toggle handle to show/hide tools for full-canvas view.
+ * - Provides consistent, predictable access to drawing tools without floating button clutter.
  */
 @Composable
 fun CollapsibleDrawingToolbar(
@@ -122,329 +119,59 @@ fun CollapsibleDrawingToolbar(
     initiallyExpanded: Boolean = true
 ) {
     var isExpanded by rememberSaveable { mutableStateOf(initiallyExpanded) }
-    val configuration = LocalConfiguration.current
-    val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
 
-    BoxWithConstraints(
-        modifier = modifier.fillMaxSize()
+    Box(
+        modifier = modifier.fillMaxSize(),
+        contentAlignment = Alignment.BottomCenter
     ) {
-        val density = LocalDensity.current
-        val coroutineScope = rememberCoroutineScope()
-        val maxWidthPx = constraints.maxWidth.toFloat()
-        val maxHeightPx = constraints.maxHeight.toFloat()
-        val fabSizePx = with(density) { 52.dp.toPx() }
-        val marginPx = with(density) { 16.dp.toPx() }
-        val minXPx = marginPx
-        val maxXPx = (maxWidthPx - fabSizePx - marginPx).coerceAtLeast(minXPx)
-
-        val insets = WindowInsets.statusBars.asPaddingValues()
-        val navInsets = WindowInsets.navigationBars.asPaddingValues()
-        val topLimitPx = with(density) { insets.calculateTopPadding().toPx() } + with(density) { 68.dp.toPx() }
-        val bottomLimitPx = (maxHeightPx - with(density) { navInsets.calculateBottomPadding().toPx() } - fabSizePx - with(density) { 16.dp.toPx() }).coerceAtLeast(topLimitPx)
-
-        var isDockedOnLeft by rememberSaveable { mutableStateOf(false) }
-        var fabYFraction by rememberSaveable { mutableFloatStateOf(0.85f) }
-
-        val targetDockX = if (isDockedOnLeft) minXPx else maxXPx
-        val targetDockY = topLimitPx + (bottomLimitPx - topLimitPx) * fabYFraction
-
-        val animX = remember { Animatable(targetDockX) }
-        val animY = remember { Animatable(targetDockY) }
-
-        LaunchedEffect(maxWidthPx, maxHeightPx, isDockedOnLeft, fabYFraction) {
-            val currentDockX = if (isDockedOnLeft) minXPx else maxXPx
-            val currentDockY = topLimitPx + (bottomLimitPx - topLimitPx) * fabYFraction
-            if (abs(animX.value - currentDockX) > 2f) animX.animateTo(currentDockX, spring())
-            if (abs(animY.value - currentDockY) > 2f) animY.animateTo(currentDockY, spring())
-        }
-
-        val onFabDrag: (Offset) -> Unit = { dragAmount ->
-            val newX = (animX.value + dragAmount.x).coerceIn(minXPx, maxXPx)
-            val newY = (animY.value + dragAmount.y).coerceIn(topLimitPx, bottomLimitPx)
-            coroutineScope.launch {
-                animX.snapTo(newX)
-                animY.snapTo(newY)
-            }
-        }
-
-        val onFabDragEnd: (Velocity) -> Unit = { velocity ->
-            val midX = (minXPx + maxXPx) / 2f
-            val dockLeft = when {
-                velocity.x < -500f -> true
-                velocity.x > 500f -> false
-                else -> animX.value < midX
-            }
-            isDockedOnLeft = dockLeft
-            val targetX = if (dockLeft) minXPx else maxXPx
-
-            val coastY = animY.value + (velocity.y * 0.08f)
-            val targetY = coastY.coerceIn(topLimitPx, bottomLimitPx)
-            val finalFraction = if (bottomLimitPx > topLimitPx) {
-                ((targetY - topLimitPx) / (bottomLimitPx - topLimitPx)).coerceIn(0f, 1f)
-            } else 0.85f
-            fabYFraction = finalFraction
-
-            coroutineScope.launch {
-                launch { animX.animateTo(targetX, spring(dampingRatio = 0.78f, stiffness = Spring.StiffnessMediumLow)) }
-                launch { animY.animateTo(targetY, spring(dampingRatio = 0.78f, stiffness = Spring.StiffnessMediumLow)) }
-            }
-        }
-
-        if (isLandscape) {
-            Box(
-                modifier = Modifier.fillMaxSize()
-            ) {
-                if (!isDockedOnLeft) {
-                    // Docked on Right border
-                    Row(
-                        modifier = Modifier
-                            .align(Alignment.TopEnd)
-                            .offset { IntOffset(0, animY.value.roundToInt()) }
-                            .padding(end = 16.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.End
-                    ) {
-                        AnimatedVisibility(
-                            visible = isExpanded,
-                            enter = slideInHorizontally(initialOffsetX = { it }) + expandHorizontally(expandFrom = Alignment.End) + fadeIn(),
-                            exit = slideOutHorizontally(targetOffsetX = { it }) + shrinkHorizontally(shrinkTowards = Alignment.End) + fadeOut(),
-                            modifier = Modifier.weight(1f, fill = false)
-                        ) {
-                            DrawingToolbar(
-                                uiState = uiState,
-                                onAction = onAction,
-                                maxEraserSize = maxEraserSize,
-                                modifier = Modifier.padding(end = 8.dp)
-                            )
-                        }
-
-                        if (isExpanded) {
-                            ToolbarFab(
-                                isExpanded = true,
-                                onTap = { isExpanded = false },
-                                arrowVector = Icons.AutoMirrored.Filled.ArrowForward
-                            )
-                        }
-                    }
-                } else {
-                    // Docked on Left border
-                    Row(
-                        modifier = Modifier
-                            .align(Alignment.TopStart)
-                            .offset { IntOffset(0, animY.value.roundToInt()) }
-                            .padding(start = 16.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.Start
-                    ) {
-                        if (isExpanded) {
-                            ToolbarFab(
-                                isExpanded = true,
-                                onTap = { isExpanded = false },
-                                arrowVector = Icons.AutoMirrored.Filled.ArrowBack
-                            )
-                        }
-
-                        AnimatedVisibility(
-                            visible = isExpanded,
-                            enter = slideInHorizontally(initialOffsetX = { -it }) + expandHorizontally(expandFrom = Alignment.Start) + fadeIn(),
-                            exit = slideOutHorizontally(targetOffsetX = { -it }) + shrinkHorizontally(shrinkTowards = Alignment.Start) + fadeOut(),
-                            modifier = Modifier.weight(1f, fill = false)
-                        ) {
-                            DrawingToolbar(
-                                uiState = uiState,
-                                onAction = onAction,
-                                maxEraserSize = maxEraserSize,
-                                modifier = Modifier.padding(start = 8.dp)
-                            )
-                        }
-                    }
-                }
-
-                // When collapsed: free movable FAB across screen
-                if (!isExpanded) {
-                    ToolbarFab(
-                        isExpanded = false,
-                        onTap = { isExpanded = true },
-                        modifier = Modifier.offset {
-                            IntOffset(animX.value.roundToInt(), animY.value.roundToInt())
-                        },
-                        onDrag = onFabDrag,
-                        onDragEnd = onFabDragEnd
-                    )
-                }
-            }
-        } else {
-            // Portrait: Toolbar always appears below the FAB
-            var toolbarHeightPx by remember { mutableFloatStateOf(with(density) { 120.dp.toPx() }) }
-            val spacingPx = with(density) { 8.dp.toPx() }
-            val bottomInset = with(density) { navInsets.calculateBottomPadding().toPx() }
-
-            // Maximum Y the FAB can be at while expanded so the toolbar fits on screen below it
-            val maxExpandedFabY = (maxHeightPx - bottomInset - fabSizePx - toolbarHeightPx - spacingPx - with(density) { 16.dp.toPx() }).coerceAtLeast(topLimitPx)
-
-            val targetFabY = if (isExpanded) {
-                animY.value.coerceAtMost(maxExpandedFabY)
-            } else {
-                animY.value
-            }
-
-            val animatedFabY by animateFloatAsState(
-                targetValue = targetFabY,
-                animationSpec = spring(dampingRatio = 0.8f, stiffness = Spring.StiffnessMediumLow),
-                label = "portraitFabY"
-            )
-
-            val toolbarY = animatedFabY + fabSizePx + spacingPx
-
-            Box(
-                modifier = Modifier.fillMaxSize()
-            ) {
-                AnimatedVisibility(
-                    visible = isExpanded,
-                    enter = slideInVertically(initialOffsetY = { -it }) + expandVertically(expandFrom = Alignment.Top) + fadeIn(),
-                    exit = slideOutVertically(targetOffsetY = { -it }) + shrinkVertically(shrinkTowards = Alignment.Top) + fadeOut(),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .offset { IntOffset(0, toolbarY.roundToInt()) }
-                ) {
-                    DrawingToolbar(
-                        uiState = uiState,
-                        onAction = onAction,
-                        maxEraserSize = maxEraserSize,
-                        modifier = Modifier.onSizeChanged { size ->
-                            if (size.height > 0) toolbarHeightPx = size.height.toFloat()
-                        }
-                    )
-                }
-
-                if (isExpanded) {
-                    ToolbarFab(
-                        isExpanded = true,
-                        onTap = { isExpanded = false },
-                        arrowVector = Icons.Default.KeyboardArrowUp,
-                        modifier = Modifier.offset {
-                            IntOffset(animX.value.roundToInt(), animatedFabY.roundToInt())
-                        }
-                    )
-                } else {
-                    ToolbarFab(
-                        isExpanded = false,
-                        onTap = { isExpanded = true },
-                        modifier = Modifier.offset {
-                            IntOffset(animX.value.roundToInt(), animY.value.roundToInt())
-                        },
-                        onDrag = onFabDrag,
-                        onDragEnd = onFabDragEnd
-                    )
-                }
-            }
-        }
-    }
-}
-
-/**
- * Floating Action Button for the drawing toolbar:
- * - When expanded: NOT movable. Plain clickable button that immediately collapses the toolbar.
- * - When collapsed: Movable via drag gestures in 2D. Tapping it expands the toolbar.
- * - Attaches itself to the borders when released or thrown.
- */
-@Composable
-private fun ToolbarFab(
-    isExpanded: Boolean,
-    onTap: () -> Unit,
-    modifier: Modifier = Modifier,
-    arrowVector: ImageVector = Icons.Default.KeyboardArrowDown,
-    onDrag: (Offset) -> Unit = {},
-    onDragEnd: (Velocity) -> Unit = {}
-) {
-    val viewConfig = LocalViewConfiguration.current
-
-    val fabModifier = if (isExpanded) {
-        modifier
-            .size(52.dp)
-            .clickable(
-                onClick = onTap,
-                role = Role.Button
-            )
-    } else {
-        modifier
-            .size(52.dp)
-            .pointerInput(Unit) {
-                awaitEachGesture {
-                    val down = awaitFirstDown(requireUnconsumed = false)
-                    down.consume()
-                    var isDrag = false
-                    var totalDrag = Offset.Zero
-                    val touchSlop = viewConfig.touchSlop
-                    val velocityTracker = VelocityTracker()
-                    velocityTracker.addPosition(down.uptimeMillis, down.position)
-
-                    while (true) {
-                        val event = awaitPointerEvent()
-                        val change = event.changes.firstOrNull { it.id == down.id }
-                        if (change == null) {
-                            if (isDrag) {
-                                val velocity = velocityTracker.calculateVelocity()
-                                onDragEnd(velocity)
-                            }
-                            break
-                        }
-
-                        velocityTracker.addPosition(change.uptimeMillis, change.position)
-
-                        if (!change.pressed) {
-                            change.consume()
-                            if (!isDrag) {
-                                onTap()
-                            } else {
-                                val velocity = velocityTracker.calculateVelocity()
-                                onDragEnd(velocity)
-                            }
-                            break
-                        }
-
-                        change.consume()
-                        val dragAmount = change.position - change.previousPosition
-                        totalDrag += dragAmount
-
-                        if (!isDrag) {
-                            if (totalDrag.getDistance() > touchSlop) {
-                                isDrag = true
-                                onDrag(dragAmount)
-                            }
-                        } else {
-                            onDrag(dragAmount)
-                        }
-                    }
-                }
-            }
-    }
-
-    Surface(
-        shape = CircleShape,
-        color = MaterialTheme.colorScheme.primaryContainer,
-        contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
-        shadowElevation = 6.dp,
-        tonalElevation = 6.dp,
-        modifier = fabModifier
-    ) {
-        Box(
-            contentAlignment = Alignment.Center,
-            modifier = Modifier.fillMaxSize()
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(bottom = 6.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            AnimatedContent(
-                targetState = isExpanded,
-                transitionSpec = {
-                    (fadeIn(animationSpec = tween(200, delayMillis = 50)) +
-                        scaleIn(initialScale = 0.75f, animationSpec = tween(200, delayMillis = 50)))
-                        .togetherWith(fadeOut(animationSpec = tween(80)) + scaleOut(targetScale = 0.75f, animationSpec = tween(80)))
-                },
-                label = "ToolbarFabIcon"
-            ) { expanded ->
-                Icon(
-                    imageVector = if (expanded) arrowVector else Icons.Default.Palette,
-                    contentDescription = if (expanded) "Collapse Toolbar" else "Show Tools",
-                    modifier = Modifier.size(26.dp)
+            // Unobtrusive toggle handle to collapse or expand the bottom toolbar
+            Surface(
+                shape = CircleShape,
+                color = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.94f),
+                tonalElevation = 3.dp,
+                shadowElevation = 4.dp,
+                modifier = Modifier
+                    .padding(bottom = 4.dp)
+                    .clip(CircleShape)
+                    .clickable { isExpanded = !isExpanded }
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 5.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    Icon(
+                        imageVector = if (isExpanded) Icons.Default.KeyboardArrowDown else Icons.Default.Palette,
+                        contentDescription = if (isExpanded) "Hide Toolbar" else "Show Tools",
+                        modifier = Modifier.size(18.dp),
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                    Text(
+                        text = if (isExpanded) "Hide" else "Tools 🎨",
+                        style = MaterialTheme.typography.labelSmall.copy(
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 12.sp
+                        ),
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                }
+            }
+
+            AnimatedVisibility(
+                visible = isExpanded,
+                enter = slideInVertically(initialOffsetY = { it }) + expandVertically() + fadeIn(),
+                exit = slideOutVertically(targetOffsetY = { it }) + shrinkVertically() + fadeOut()
+            ) {
+                DrawingToolbar(
+                    uiState = uiState,
+                    onAction = onAction,
+                    maxEraserSize = maxEraserSize
                 )
             }
         }

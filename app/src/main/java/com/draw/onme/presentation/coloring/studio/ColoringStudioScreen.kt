@@ -4,6 +4,8 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Row
@@ -53,10 +55,11 @@ import com.draw.onme.presentation.coloring.ColoringAction
 import com.draw.onme.presentation.coloring.ColoringViewModel
 import com.draw.onme.presentation.coloring.ColoringViewModel.Companion.CANONICAL_SIZE
 import com.draw.onme.presentation.coloring.components.ColoringCanvas
+import androidx.compose.runtime.saveable.rememberSaveable
+import com.draw.onme.presentation.coloring.components.ColoringCelebrationOverlay
 import com.draw.onme.presentation.coloring.components.ColoringToolbar
 import com.draw.onme.presentation.scribble.components.ZoomControlsHud
 import com.draw.onme.presentation.scribble.model.CanvasTransformState
-import com.draw.onme.presentation.stencil.drawing.components.CelebrationOverlay
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
@@ -86,11 +89,23 @@ fun ColoringStudioScreen(
 
     var showCelebration by remember { mutableStateOf(false) }
     var showPinnedToast by remember { mutableStateOf(false) }
+    var hasCelebratedThisSession by rememberSaveable(pageId) { mutableStateOf(false) }
 
     LaunchedEffect(showPinnedToast) {
         if (showPinnedToast) {
             delay(2400)
             showPinnedToast = false
+        }
+    }
+
+    // Automatically trigger joyful confetti when all regions of a coloring page are filled!
+    LaunchedEffect(uiState.isAllRegionsFilled) {
+        if (uiState.isAllRegionsFilled && !hasCelebratedThisSession) {
+            hasCelebratedThisSession = true
+            showCelebration = true
+            tracker.trackEvent("coloring_completed", mapOf("page_id" to pageId))
+            delay(4000)
+            showCelebration = false
         }
     }
 
@@ -132,7 +147,7 @@ fun ColoringStudioScreen(
             transformState = transformState
         )
 
-        // Top Left pill: Back button + Page Title
+        // Top Left pill: Back button + Page Title + Done badge
         Surface(
             shape = RoundedCornerShape(24.dp),
             color = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.92f),
@@ -164,60 +179,81 @@ fun ColoringStudioScreen(
                         fontWeight = FontWeight.Bold
                     )
                 )
+                if (uiState.isAllRegionsFilled) {
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Surface(
+                        shape = RoundedCornerShape(12.dp),
+                        color = Color(0xFF2E7D32).copy(alpha = 0.15f)
+                    ) {
+                        Text(
+                            text = "✓ Done",
+                            style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                            color = Color(0xFF2E7D32),
+                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                        )
+                    }
+                }
             }
         }
 
-        // Floating Zoom Controls HUD
-        Box(
+        // Transient Zoom Badge (auto-hidden when at default view, tap to reset)
+        val isZoomed = kotlin.math.abs(transformState.zoom - targetZoom) > 0.05f || (transformState.pan - targetPan).getDistanceSquared() > 100f
+        AnimatedVisibility(
+            visible = isZoomed,
+            enter = fadeIn(),
+            exit = fadeOut(),
             modifier = Modifier
-                .align(Alignment.TopStart)
+                .align(Alignment.TopCenter)
                 .statusBarsPadding()
-                .padding(start = 16.dp, top = 64.dp)
+                .padding(top = 64.dp)
         ) {
-            ZoomControlsHud(
-                transformState = transformState,
-                onReset = { transformState.setTransform(targetPan, targetZoom) }
-            )
-        }
-
-        // Top Right pill: Magic Wand & Pin to Fridge
-        Surface(
-            shape = RoundedCornerShape(24.dp),
-            color = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.92f),
-            tonalElevation = 3.dp,
-            shadowElevation = 4.dp,
-            modifier = Modifier
-                .align(Alignment.TopEnd)
-                .statusBarsPadding()
-                .padding(end = 16.dp, top = 12.dp)
-        ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.padding(horizontal = 4.dp, vertical = 4.dp)
+            Surface(
+                shape = RoundedCornerShape(16.dp),
+                color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.90f),
+                shadowElevation = 4.dp,
+                modifier = Modifier
+                    .clip(RoundedCornerShape(16.dp))
+                    .clickable { transformState.setTransform(targetPan, targetZoom) }
             ) {
-                // Magic Wand Celebration
-                val hasProgress = uiState.fills.isNotEmpty() || uiState.customFills.isNotEmpty() || uiState.strokes.isNotEmpty()
-                IconButton(
-                    onClick = {
-                        if (hasProgress) {
-                            tracker.trackEvent("coloring_magic_wand", mapOf("page_id" to pageId))
-                            showCelebration = true
-                        }
-                    },
-                    modifier = Modifier.size(36.dp)
+                Row(
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
+                    val percent = if (targetZoom > 0f) ((transformState.zoom / targetZoom) * 100f).roundToInt() else 100
                     Text(
-                        text = "🪄",
-                        fontSize = 20.sp,
-                        modifier = Modifier.alpha(if (hasProgress) 1f else 0.45f)
+                        text = "$percent%",
+                        style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Text(
+                        text = "• Reset",
+                        style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium),
+                        color = MaterialTheme.colorScheme.primary
                     )
                 }
+            }
+        }
 
-                // Pin to Fridge
-                if (artworkRepository != null && page != null) {
-                    IconButton(
-                        onClick = {
-                            if (hasProgress) {
+        // Top Right: Save to Fridge (Virtual Fridge Gallery)
+        if (artworkRepository != null && page != null) {
+            val hasProgress = uiState.fills.isNotEmpty() || uiState.customFills.isNotEmpty() || uiState.strokes.isNotEmpty()
+            Surface(
+                shape = RoundedCornerShape(24.dp),
+                color = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.92f),
+                tonalElevation = 3.dp,
+                shadowElevation = 4.dp,
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .statusBarsPadding()
+                    .padding(end = 16.dp, top = 12.dp)
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier
+                        .clickable(
+                            enabled = hasProgress,
+                            onClick = {
                                 tracker.trackEvent("coloring_pin_to_fridge", mapOf("page_id" to pageId))
                                 coroutineScope.launch {
                                     val artwork = ColoringArtworkConverter.toSavedArtwork(
@@ -230,15 +266,16 @@ fun ColoringStudioScreen(
                                     showPinnedToast = true
                                 }
                             }
-                        },
-                        modifier = Modifier.size(36.dp)
-                    ) {
-                        Text(
-                            text = "📌",
-                            fontSize = 18.sp,
-                            modifier = Modifier.alpha(if (hasProgress) 1f else 0.45f)
                         )
-                    }
+                        .padding(horizontal = 12.dp, vertical = 6.dp)
+                ) {
+                    Text(text = "🖼️", fontSize = 18.sp)
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = "Fridge",
+                        style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold),
+                        color = if (hasProgress) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)
+                    )
                 }
             }
         }
@@ -303,8 +340,8 @@ fun ColoringStudioScreen(
             )
         }
 
-        // Confetti celebration overlay
-        CelebrationOverlay(
+        // Non-intrusive full-screen falling confetti and completion banner
+        ColoringCelebrationOverlay(
             visible = showCelebration,
             onDismiss = { showCelebration = false }
         )

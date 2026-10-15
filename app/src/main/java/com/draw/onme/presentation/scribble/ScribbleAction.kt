@@ -21,4 +21,6 @@ sealed interface ScribbleAction {
     data object RequestClearCanvas : ScribbleAction
     data object ConfirmClearCanvas : ScribbleAction
     data object DismissClearCanvas : ScribbleAction
+    data object ConfirmPupGuess : ScribbleAction
+    data object DismissPupGuess : ScribbleAction
 }

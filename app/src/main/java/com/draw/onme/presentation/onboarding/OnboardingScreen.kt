@@ -40,26 +40,17 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.draw.onme.R
-import com.draw.onme.presentation.onboarding.components.RainbowSplashPad
 import com.draw.onme.ui.theme.DrawOnMeTheme
 
 /**
- * Child-first onboarding screen featuring an interactive rainbow splash pad,
- * pre-reader visual pathways, and parent safety assurance.
- *
- * Layout positioning:
- * - Bottom content (Magic Pad, pathway cards, reassurance badge) is anchored to the bottom.
- * - App brand header ("DrawOnMe") is dynamically centered in the space between the top
- *   of the screen and the top of the magic pad.
- * - Smooth vertical scrolling activates automatically on compact or landscape viewports.
+ * Child-first onboarding screen featuring pre-reader visual pathways
+ * and parent safety assurance.
  *
  * @param onSelectFreeScribble Callback when user selects the freehand notepad.
  * @param onSelectColoringBook Callback when user selects the coloring book studio.
@@ -96,81 +87,13 @@ fun OnboardingScreen(
                     onSelectFridge = onSelectFridge
                 )
             } else {
-                OnboardingLayout(
-                    availableHeight = maxHeight,
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .verticalScroll(rememberScrollState()),
-                    header = {
-                        AppBrandHeader()
-                    },
-                    content = {
-                        OnboardingBottomContent(
-                            onSelectFreeScribble = onSelectFreeScribble,
-                            onSelectColoringBook = onSelectColoringBook,
-                            onSelectStencils = onSelectStencils,
-                            onSelectFridge = onSelectFridge,
-                            modifier = Modifier.fillMaxWidth()
-                        )
-                    }
+                OnboardingPortraitContent(
+                    onSelectFreeScribble = onSelectFreeScribble,
+                    onSelectColoringBook = onSelectColoringBook,
+                    onSelectStencils = onSelectStencils,
+                    onSelectFridge = onSelectFridge
                 )
             }
-        }
-    }
-}
-
-/**
- * Custom two-slot layout that keeps the [content] (magic pad + cards) anchored at the bottom,
- * and centers the [header] ("DrawOnMe") vertically in the remaining space between the top edge
- * and the top of the magic pad.
- */
-@Composable
-private fun OnboardingLayout(
-    availableHeight: Dp,
-    header: @Composable () -> Unit,
-    content: @Composable () -> Unit,
-    modifier: Modifier = Modifier,
-    minSpacing: Dp = 16.dp
-) {
-    Layout(
-        contents = listOf(header, content),
-        modifier = modifier
-    ) { (headerMeasurables, contentMeasurables), constraints ->
-        val headerConstraints = constraints.copy(minWidth = 0, minHeight = 0)
-        val headerPlaceable = headerMeasurables.first().measure(headerConstraints)
-        val contentConstraints = constraints.copy(minHeight = 0)
-        val contentPlaceable = contentMeasurables.first().measure(contentConstraints)
-
-        val availableHeightPx = availableHeight.roundToPx()
-        val minSpacingPx = minSpacing.roundToPx()
-        val neededHeight = headerPlaceable.height + minSpacingPx + contentPlaceable.height
-
-        val totalHeight: Int
-        val headerY: Int
-        val contentY: Int
-
-        if (neededHeight <= availableHeightPx) {
-            // Viewport is tall enough: anchor content to bottom, center header in upper space
-            totalHeight = availableHeightPx
-            contentY = availableHeightPx - contentPlaceable.height
-            // Available vertical space between top (0) and top of magic pad (contentY)
-            val spaceAbovePad = contentY
-            headerY = ((spaceAbovePad - headerPlaceable.height) / 2).coerceAtLeast(0)
-        } else {
-            // Compact screen / landscape: stack naturally with minimum spacing and scroll
-            totalHeight = neededHeight
-            headerY = 0
-            contentY = headerPlaceable.height + minSpacingPx
-        }
-
-        val width = constraints.maxWidth
-
-        layout(width, totalHeight) {
-            val headerX = (width - headerPlaceable.width) / 2
-            val contentX = (width - contentPlaceable.width) / 2
-
-            headerPlaceable.placeRelative(headerX, headerY)
-            contentPlaceable.placeRelative(contentX, contentY)
         }
     }
 }
@@ -212,7 +135,7 @@ private fun AppBrandHeader(
 }
 
 @Composable
-private fun OnboardingBottomContent(
+private fun OnboardingPortraitContent(
     onSelectFreeScribble: () -> Unit,
     onSelectColoringBook: () -> Unit,
     onSelectStencils: () -> Unit,
@@ -220,80 +143,70 @@ private fun OnboardingBottomContent(
     modifier: Modifier = Modifier
 ) {
     Column(
-        modifier = modifier,
-        horizontalAlignment = Alignment.CenterHorizontally
+        modifier = modifier.fillMaxSize(),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.SpaceBetween
     ) {
-        // Big Interactive First Touch Rainbow Splash Pad
-        RainbowSplashPad(
-            height = 195.dp
-        )
-
-        Spacer(modifier = Modifier.height(20.dp))
-
-        Text(
-            text = "Choose Your Adventure",
-            style = MaterialTheme.typography.titleMedium.copy(
-                fontWeight = FontWeight.Bold
-            ),
-            color = MaterialTheme.colorScheme.onBackground,
-            modifier = Modifier.align(Alignment.Start)
-        )
-
         Spacer(modifier = Modifier.height(12.dp))
 
-        // Card 1: Magic Doodle (Free Scribble)
-        ModeSelectionCard(
-            title = "Magic Doodle",
-            subtitle = "Draw & scribble freely on an open notepad with vibrant colors and pens.",
-            badgeEmoji = "✏️",
-            icon = Icons.Default.Draw,
-            containerColor = Color(0xFFFFF3E0), // Warm soft orange/amber
-            contentColor = Color(0xFFE65100),
-            onClick = onSelectFreeScribble
-        )
+        AppBrandHeader()
 
-        Spacer(modifier = Modifier.height(14.dp))
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 4.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                ModeSelectionTile(
+                    title = "Free Doodle",
+                    badgeEmoji = "✏️",
+                    containerColor = Color(0xFFFFF3E0),
+                    contentColor = Color(0xFFE65100),
+                    onClick = onSelectFreeScribble,
+                    modifier = Modifier.weight(1f)
+                )
 
-        // Card 2: Coloring Book
-        ModeSelectionCard(
-            title = "Coloring Book",
-            subtitle = "Fill cute animals, cars, and castles with vibrant colors & magic crayons inside the lines.",
-            badgeEmoji = "🎨",
-            icon = Icons.Default.Palette,
-            containerColor = Color(0xFFE1F5FE), // Soft sky cyan
-            contentColor = Color(0xFF01579B),
-            onClick = onSelectColoringBook
-        )
+                ModeSelectionTile(
+                    title = "Coloring Book",
+                    badgeEmoji = "🎨",
+                    containerColor = Color(0xFFE1F5FE),
+                    contentColor = Color(0xFF01579B),
+                    onClick = onSelectColoringBook,
+                    modifier = Modifier.weight(1f)
+                )
+            }
 
-        Spacer(modifier = Modifier.height(14.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                ModeSelectionTile(
+                    title = "Art School",
+                    badgeEmoji = "🐾",
+                    containerColor = Color(0xFFEDE7F6),
+                    contentColor = Color(0xFF4A148C),
+                    onClick = onSelectStencils,
+                    modifier = Modifier.weight(1f)
+                )
 
-        // Card 3: Learn to Draw (Geometric Stencils)
-        ModeSelectionCard(
-            title = "Learn to Draw",
-            subtitle = "Follow fun stencils! Trace cars, houses, rockets, and cute animals step-by-step.",
-            badgeEmoji = "✨",
-            icon = Icons.Default.AutoAwesome,
-            containerColor = Color(0xFFEDE7F6), // Soft lavender
-            contentColor = Color(0xFF4A148C),
-            onClick = onSelectStencils
-        )
-
-        Spacer(modifier = Modifier.height(14.dp))
-
-        // Card 4: My Fridge Door (Gallery)
-        ModeSelectionCard(
-            title = "My Fridge Door",
-            subtitle = "See all your proud masterpieces pinned on the virtual refrigerator!",
-            badgeEmoji = "🖼️",
-            icon = Icons.Default.PhotoLibrary,
-            containerColor = Color(0xFFE0F2F1), // Soft mint
-            contentColor = Color(0xFF004D40),
-            onClick = onSelectFridge
-        )
-
-        Spacer(modifier = Modifier.height(24.dp))
+                ModeSelectionTile(
+                    title = "My Fridge",
+                    badgeEmoji = "🖼️",
+                    containerColor = Color(0xFFE0F2F1),
+                    contentColor = Color(0xFF004D40),
+                    onClick = onSelectFridge,
+                    modifier = Modifier.weight(1f)
+                )
+            }
+        }
 
         ParentReassuranceBadge()
+
+        Spacer(modifier = Modifier.height(8.dp))
     }
 }
 
@@ -336,88 +249,80 @@ private fun OnboardingLandscapeContent(
         horizontalArrangement = Arrangement.spacedBy(24.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        // Left Column: Brand Header, Compact Rainbow Pad, and Safety Badge
+        // Left Column: Brand Header and Safety Badge
         Column(
             modifier = Modifier
                 .weight(1f)
                 .fillMaxHeight(),
-            verticalArrangement = Arrangement.SpaceBetween,
+            verticalArrangement = Arrangement.SpaceAround,
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             AppBrandHeader()
-
-            RainbowSplashPad(
-                height = 140.dp
-            )
-
             ParentReassuranceBadge()
         }
 
-        // Right Column: Mode Cards with smooth scrolling
+        // Right Column: 2x2 Grid of Mode Tiles
         Column(
             modifier = Modifier
-                .weight(1.2f)
-                .fillMaxHeight()
-                .verticalScroll(rememberScrollState()),
-            verticalArrangement = Arrangement.spacedBy(10.dp)
+                .weight(1.5f)
+                .fillMaxHeight(),
+            verticalArrangement = Arrangement.Center
         ) {
-            Text(
-                text = "Choose Your Adventure",
-                style = MaterialTheme.typography.titleMedium.copy(
-                    fontWeight = FontWeight.Bold
-                ),
-                color = MaterialTheme.colorScheme.onBackground
-            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(14.dp)
+            ) {
+                ModeSelectionTile(
+                    title = "Free Doodle",
+                    badgeEmoji = "✏️",
+                    containerColor = Color(0xFFFFF3E0),
+                    contentColor = Color(0xFFE65100),
+                    onClick = onSelectFreeScribble,
+                    modifier = Modifier.weight(1f)
+                )
 
-            ModeSelectionCard(
-                title = "Magic Doodle",
-                subtitle = "Draw & scribble freely on an open notepad with vibrant colors and pens.",
-                badgeEmoji = "✏️",
-                icon = Icons.Default.Draw,
-                containerColor = Color(0xFFFFF3E0),
-                contentColor = Color(0xFFE65100),
-                onClick = onSelectFreeScribble
-            )
+                ModeSelectionTile(
+                    title = "Coloring Book",
+                    badgeEmoji = "🎨",
+                    containerColor = Color(0xFFE1F5FE),
+                    contentColor = Color(0xFF01579B),
+                    onClick = onSelectColoringBook,
+                    modifier = Modifier.weight(1f)
+                )
+            }
 
-            ModeSelectionCard(
-                title = "Coloring Book",
-                subtitle = "Fill cute animals, cars, and castles with vibrant colors & magic crayons inside the lines.",
-                badgeEmoji = "🎨",
-                icon = Icons.Default.Palette,
-                containerColor = Color(0xFFE1F5FE),
-                contentColor = Color(0xFF01579B),
-                onClick = onSelectColoringBook
-            )
+            Spacer(modifier = Modifier.height(14.dp))
 
-            ModeSelectionCard(
-                title = "Learn to Draw",
-                subtitle = "Follow fun stencils! Trace cars, houses, rockets, and cute animals step-by-step.",
-                badgeEmoji = "✨",
-                icon = Icons.Default.AutoAwesome,
-                containerColor = Color(0xFFEDE7F6),
-                contentColor = Color(0xFF4A148C),
-                onClick = onSelectStencils
-            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(14.dp)
+            ) {
+                ModeSelectionTile(
+                    title = "Art School",
+                    badgeEmoji = "🐾",
+                    containerColor = Color(0xFFEDE7F6),
+                    contentColor = Color(0xFF4A148C),
+                    onClick = onSelectStencils,
+                    modifier = Modifier.weight(1f)
+                )
 
-            ModeSelectionCard(
-                title = "My Fridge Door",
-                subtitle = "See all your proud masterpieces pinned on the virtual refrigerator!",
-                badgeEmoji = "🖼️",
-                icon = Icons.Default.PhotoLibrary,
-                containerColor = Color(0xFFE0F2F1),
-                contentColor = Color(0xFF004D40),
-                onClick = onSelectFridge
-            )
+                ModeSelectionTile(
+                    title = "My Fridge",
+                    badgeEmoji = "🖼️",
+                    containerColor = Color(0xFFE0F2F1),
+                    contentColor = Color(0xFF004D40),
+                    onClick = onSelectFridge,
+                    modifier = Modifier.weight(1f)
+                )
+            }
         }
     }
 }
 
 @Composable
-private fun ModeSelectionCard(
+private fun ModeSelectionTile(
     title: String,
-    subtitle: String,
     badgeEmoji: String,
-    icon: ImageVector,
     containerColor: Color,
     contentColor: Color,
     onClick: () -> Unit,
@@ -426,57 +331,44 @@ private fun ModeSelectionCard(
     Card(
         modifier = modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(22.dp))
+            .clip(RoundedCornerShape(26.dp))
             .clickable(onClick = onClick),
-        shape = RoundedCornerShape(22.dp),
+        shape = RoundedCornerShape(26.dp),
         colors = CardDefaults.cardColors(
             containerColor = containerColor,
             contentColor = contentColor
         ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        elevation = CardDefaults.cardElevation(defaultElevation = 3.dp)
     ) {
-        Row(
-            modifier = Modifier.padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(14.dp)
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 24.dp, horizontal = 12.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
         ) {
             Box(
                 modifier = Modifier
-                    .size(54.dp)
+                    .size(68.dp)
                     .clip(CircleShape)
-                    .background(Color.White.copy(alpha = 0.85f)),
+                    .background(Color.White.copy(alpha = 0.90f)),
                 contentAlignment = Alignment.Center
             ) {
                 Text(
                     text = badgeEmoji,
-                    fontSize = 28.sp
+                    fontSize = 34.sp
                 )
             }
 
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = title,
-                    style = MaterialTheme.typography.titleMedium.copy(
-                        fontWeight = FontWeight.Bold
-                    ),
-                    color = contentColor
-                )
+            Spacer(modifier = Modifier.height(14.dp))
 
-                Spacer(modifier = Modifier.height(4.dp))
-
-                Text(
-                    text = subtitle,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = contentColor.copy(alpha = 0.85f),
-                    lineHeight = 16.sp
-                )
-            }
-
-            Icon(
-                imageVector = Icons.AutoMirrored.Filled.ArrowForward,
-                contentDescription = null,
-                tint = contentColor,
-                modifier = Modifier.size(20.dp)
+            Text(
+                text = title,
+                style = MaterialTheme.typography.titleMedium.copy(
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 17.sp
+                ),
+                color = contentColor
             )
         }
     }

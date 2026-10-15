@@ -1,7 +1,9 @@
 package com.draw.onme.presentation.scribble
 
 import androidx.compose.runtime.Immutable
+import com.draw.onme.domain.model.DoodlePrediction
 import com.draw.onme.domain.model.DrawingTool
+import com.draw.onme.domain.model.PupMood
 import com.draw.onme.domain.model.Stroke
 import com.draw.onme.domain.model.StrokeColor
 
@@ -20,5 +22,10 @@ data class ScribbleUiState(
     val canRedo: Boolean = false,
     val availableColors: List<StrokeColor> = StrokeColor.DefaultPalette,
     val availableStrokeWidths: List<Float> = listOf(3f, 6f, 12f, 20f),
-    val showClearDialog: Boolean = false
+    val showClearDialog: Boolean = false,
+    val pupMood: PupMood = PupMood.IDLE,
+    val activePupGuess: DoodlePrediction? = null,
+    val isPupGuessVisible: Boolean = false,
+    val pupPraiseMessage: String? = null,
+    val dismissedPredictions: Set<String> = emptySet()
 )

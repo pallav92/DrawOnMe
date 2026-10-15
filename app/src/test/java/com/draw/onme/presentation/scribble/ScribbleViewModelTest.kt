@@ -291,6 +291,94 @@ class ScribbleViewModelTest {
         assertEquals(Point(50f, 50f), stencilStrokes.first().points.first())
     }
 
+    @Test
+    fun confidentDoodleClassification_triggersPupExcitedGuess() = runTest(testDispatcher) {
+        val fakeClassifier = object : com.draw.onme.domain.classifier.DoodleClassifier {
+            override suspend fun classify(strokes: List<Stroke>): List<com.draw.onme.domain.model.DoodlePrediction> {
+                return listOf(
+                    com.draw.onme.domain.model.DoodlePrediction(
+                        category = com.draw.onme.domain.model.DoodleCategory("tree", "Tree", "🌳"),
+                        confidence = 0.85f
+                    )
+                )
+            }
+        }
+
+        val vm = ScribbleViewModel(
+            boardId = ScribbleViewModel.BOARD_MAGIC_DOODLE,
+            doodleClassifier = fakeClassifier
+        )
+
+        vm.onAction(ScribbleAction.StartStroke(Point(100f, 100f)))
+        vm.onAction(ScribbleAction.EndStroke)
+        testScheduler.advanceTimeBy(350)
+
+        val state = vm.uiState.value
+        assertTrue(state.isPupGuessVisible)
+        assertEquals(com.draw.onme.domain.model.PupMood.EXCITED, state.pupMood)
+        assertEquals("tree", state.activePupGuess?.category?.id)
+    }
+
+    @Test
+    fun confirmPupGuess_setsProudMoodAndPraiseMessage() = runTest(testDispatcher) {
+        val fakeClassifier = object : com.draw.onme.domain.classifier.DoodleClassifier {
+            override suspend fun classify(strokes: List<Stroke>): List<com.draw.onme.domain.model.DoodlePrediction> {
+                return listOf(
+                    com.draw.onme.domain.model.DoodlePrediction(
+                        category = com.draw.onme.domain.model.DoodleCategory("sun", "Sun", "☀️"),
+                        confidence = 0.90f
+                    )
+                )
+            }
+        }
+
+        val vm = ScribbleViewModel(
+            boardId = ScribbleViewModel.BOARD_MAGIC_DOODLE,
+            doodleClassifier = fakeClassifier
+        )
+
+        vm.onAction(ScribbleAction.StartStroke(Point(50f, 50f)))
+        vm.onAction(ScribbleAction.EndStroke)
+        testScheduler.advanceTimeBy(350)
+
+        vm.onAction(ScribbleAction.ConfirmPupGuess)
+
+        val state = vm.uiState.value
+        assertFalse(state.isPupGuessVisible)
+        assertEquals(com.draw.onme.domain.model.PupMood.PROUD, state.pupMood)
+        assertTrue(state.pupPraiseMessage?.contains("Sun") == true)
+    }
+
+    @Test
+    fun dismissPupGuess_mutesCategoryAndHidesBubble() = runTest(testDispatcher) {
+        val fakeClassifier = object : com.draw.onme.domain.classifier.DoodleClassifier {
+            override suspend fun classify(strokes: List<Stroke>): List<com.draw.onme.domain.model.DoodlePrediction> {
+                return listOf(
+                    com.draw.onme.domain.model.DoodlePrediction(
+                        category = com.draw.onme.domain.model.DoodleCategory("cloud", "Cloud", "☁️"),
+                        confidence = 0.88f
+                    )
+                )
+            }
+        }
+
+        val vm = ScribbleViewModel(
+            boardId = ScribbleViewModel.BOARD_MAGIC_DOODLE,
+            doodleClassifier = fakeClassifier
+        )
+
+        vm.onAction(ScribbleAction.StartStroke(Point(50f, 50f)))
+        vm.onAction(ScribbleAction.EndStroke)
+        testScheduler.advanceTimeBy(350)
+
+        vm.onAction(ScribbleAction.DismissPupGuess)
+
+        val state = vm.uiState.value
+        assertFalse(state.isPupGuessVisible)
+        assertEquals(com.draw.onme.domain.model.PupMood.IDLE, state.pupMood)
+        assertTrue(state.dismissedPredictions.contains("cloud"))
+    }
+
     private class FakeBoardDraftRepository : BoardDraftRepository {
         val boards = mutableMapOf<String, List<Stroke>>()
 

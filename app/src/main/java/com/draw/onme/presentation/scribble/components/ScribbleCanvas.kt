@@ -55,7 +55,8 @@ fun ScribbleCanvas(
     onAction: (ScribbleAction) -> Unit,
     modifier: Modifier = Modifier,
     transformState: CanvasTransformState = rememberCanvasTransformState(),
-    showBoundary: Boolean = true,
+    showBoundary: Boolean = false,
+    showGrid: Boolean = false,
     isPanZoomEnabled: Boolean = true,
     backgroundContent: (@Composable () -> Unit)? = null
 ) {
@@ -94,37 +95,38 @@ fun ScribbleCanvas(
                 transformState.viewportSize = size
             }
     ) {
-        // Excalidraw-style dot grid & 5x workspace boundary
-        Canvas(modifier = Modifier.fillMaxSize()) {
-            val zoom = transformState.zoom
-            val pan = transformState.pan
-            val gridSpacing = 28.dp.toPx()
+        if (showGrid || showBoundary) {
+            Canvas(modifier = Modifier.fillMaxSize()) {
+                val zoom = transformState.zoom
+                val pan = transformState.pan
 
-            val minWorldX = (-pan.x) / zoom - gridSpacing
-            val maxWorldX = (size.width - pan.x) / zoom + gridSpacing
-            val minWorldY = (-pan.y) / zoom - gridSpacing
-            val maxWorldY = (size.height - pan.y) / zoom + gridSpacing
+                if (showGrid) {
+                    val gridSpacing = 28.dp.toPx()
+                    val minWorldX = (-pan.x) / zoom - gridSpacing
+                    val maxWorldX = (size.width - pan.x) / zoom + gridSpacing
+                    val minWorldY = (-pan.y) / zoom - gridSpacing
+                    val maxWorldY = (size.height - pan.y) / zoom + gridSpacing
 
-            val startX = floor(minWorldX / gridSpacing) * gridSpacing
-            val startY = floor(minWorldY / gridSpacing) * gridSpacing
+                    val startX = floor(minWorldX / gridSpacing) * gridSpacing
+                    val startY = floor(minWorldY / gridSpacing) * gridSpacing
+                    val dotRadius = (1.5f * zoom.coerceIn(0.6f, 1.8f))
 
-            val dotRadius = (1.5f * zoom.coerceIn(0.6f, 1.8f))
-
-            var x = startX
-            while (x <= maxWorldX) {
-                var y = startY
-                while (y <= maxWorldY) {
-                    val screenX = x * zoom + pan.x
-                    val screenY = y * zoom + pan.y
-                    drawCircle(
-                        color = dotColor,
-                        radius = dotRadius,
-                        center = Offset(screenX, screenY)
-                    )
-                    y += gridSpacing
+                    var x = startX
+                    while (x <= maxWorldX) {
+                        var y = startY
+                        while (y <= maxWorldY) {
+                            val screenX = x * zoom + pan.x
+                            val screenY = y * zoom + pan.y
+                            drawCircle(
+                                color = dotColor,
+                                radius = dotRadius,
+                                center = Offset(screenX, screenY)
+                            )
+                            y += gridSpacing
+                        }
+                        x += gridSpacing
+                    }
                 }
-                x += gridSpacing
-            }
 
             // 5x canvas workspace boundary
             if (showBoundary) {
@@ -147,6 +149,7 @@ fun ScribbleCanvas(
                     )
                 }
             }
+        }
         }
 
         // Optional background content (stencil guide, etc.) transformed in world space
