@@ -132,6 +132,7 @@ fun DrawOnMeApp(
             is AppScreen.ColoringGallery -> {
                 ColoringGalleryScreen(
                     repository = coloringBookRepo,
+                    draftRepository = coloringDraftRepo,
                     onSelectPage = { pageId ->
                         tracker.trackEvent("coloring_page_selected", mapOf("page_id" to pageId))
                         backStack = backStack + AppScreen.ColoringStudio(pageId)

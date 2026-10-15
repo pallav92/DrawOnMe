@@ -30,6 +30,7 @@ import com.draw.onme.domain.model.ColoringPage
 import com.draw.onme.domain.model.ColoringRegion
 import com.draw.onme.domain.model.ColoringTool
 import com.draw.onme.domain.model.DrawingTool
+import com.draw.onme.domain.model.PointInPolygon
 import com.draw.onme.domain.model.Stroke
 import com.draw.onme.presentation.coloring.ColoringAction
 import com.draw.onme.presentation.coloring.ColoringUiState
@@ -66,6 +67,12 @@ fun ColoringCanvas(
         page?.regions?.associate { region ->
             region.id to buildRegionPath(region, CANONICAL_SIZE)
         } ?: emptyMap()
+    }
+
+    // Sort regions largest to smallest so parent containers are drawn first
+    // and smaller details (eyes, nose, pupils, inner ears) render on top
+    val sortedRegions = remember(page) {
+        page?.regions?.sortedByDescending { PointInPolygon.calculateArea(it.boundaryPoints) } ?: emptyList()
     }
 
     Box(
@@ -275,9 +282,9 @@ fun ColoringCanvas(
                 translate(transformState.pan.x, transformState.pan.y)
                 scale(transformState.zoom, transformState.zoom, Offset.Zero)
             }) {
-                // Layer 1: Filled regions
+                // Layer 1: Filled regions (rendered largest first, smallest last so nested parts stay visible on top)
                 if (page != null) {
-                    for (region in page.regions) {
+                    for (region in sortedRegions) {
                         val color = uiState.fills[region.id] ?: continue
                         val path = regionPaths[region.id] ?: continue
                         drawPath(

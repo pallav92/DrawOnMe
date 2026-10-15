@@ -18,30 +18,65 @@ class InMemoryColoringBookRepositoryTest {
     @Test
     fun testAllPages_loadedAndHaveUniqueIds() {
         val pages = repository.getColoringPages()
-        // 17 pages: 1 blank canvas + 16 template pages
-        assertEquals(17, pages.size)
+        // 55 pages: 1 blank canvas + 4 animals + 40 vehicles + 4 fantasy + 2 nature + 4 dinos
+        assertEquals(55, pages.size)
 
         val uniqueIds = pages.map { it.id }.toSet()
         assertEquals(pages.size, uniqueIds.size)
     }
 
     @Test
-    fun testCategories_containExpectedFiveAlbums() {
-        val categories = repository.getCategories()
-        assertEquals(5, categories.size)
-        assertTrue(categories.contains(InMemoryColoringBookRepository.CATEGORY_CREATE))
-        assertTrue(categories.contains("Animals & Pets"))
-        assertTrue(categories.contains("Vehicles & Adventures"))
-        assertTrue(categories.contains("Fairy Tale & Fantasy"))
-        assertTrue(categories.contains("Sweet Food & Nature"))
-
-        val blankPages = repository.getPagesByCategory(InMemoryColoringBookRepository.CATEGORY_CREATE)
-        assertEquals(1, blankPages.size)
-
-        for (category in categories.filter { it != InMemoryColoringBookRepository.CATEGORY_CREATE }) {
-            val pagesInCategory = repository.getPagesByCategory(category)
-            assertEquals(4, pagesInCategory.size)
+    fun testVehicles_haveDetailedParts() {
+        val vehiclePages = repository.getPagesByCategory(InMemoryColoringBookRepository.CATEGORY_VEHICLES)
+        assertEquals(40, vehiclePages.size)
+        for (page in vehiclePages) {
+            assertTrue(
+                "Vehicle page ${page.id} ('${page.title}') should have >= 10 parts for geometric details, found ${page.regions.size}",
+                page.regions.size >= 10
+            )
         }
+    }
+
+    @Test
+    fun testAnimals_areMinimalAndClean() {
+        val animalPages = repository.getPagesByCategory(InMemoryColoringBookRepository.CATEGORY_ANIMALS)
+        assertEquals(4, animalPages.size)
+        for (page in animalPages) {
+            assertTrue(
+                "Animal page ${page.id} ('${page.title}') should be minimal (< 10 parts) to avoid visual messiness, found ${page.regions.size}",
+                page.regions.size < 10
+            )
+        }
+    }
+
+    @Test
+    fun testCategories_containExpectedAlbums() {
+        val categories = repository.getCategories()
+        assertEquals(6, categories.size)
+        assertTrue(categories.contains(InMemoryColoringBookRepository.CATEGORY_CREATE))
+        assertTrue(categories.contains(InMemoryColoringBookRepository.CATEGORY_ANIMALS))
+        assertTrue(categories.contains(InMemoryColoringBookRepository.CATEGORY_VEHICLES))
+        assertTrue(categories.contains(InMemoryColoringBookRepository.CATEGORY_FANTASY))
+        assertTrue(categories.contains(InMemoryColoringBookRepository.CATEGORY_NATURE))
+        assertTrue(categories.contains(InMemoryColoringBookRepository.CATEGORY_DINOS))
+
+        assertEquals(1, repository.getPagesByCategory(InMemoryColoringBookRepository.CATEGORY_CREATE).size)
+        assertEquals(4, repository.getPagesByCategory(InMemoryColoringBookRepository.CATEGORY_ANIMALS).size)
+        assertEquals(40, repository.getPagesByCategory(InMemoryColoringBookRepository.CATEGORY_VEHICLES).size)
+        assertEquals(4, repository.getPagesByCategory(InMemoryColoringBookRepository.CATEGORY_FANTASY).size)
+        assertEquals(2, repository.getPagesByCategory(InMemoryColoringBookRepository.CATEGORY_NATURE).size)
+        assertEquals(4, repository.getPagesByCategory(InMemoryColoringBookRepository.CATEGORY_DINOS).size)
+    }
+
+    @Test
+    fun testDinosaurs_containOnlyFourSelectedCreatures() {
+        val dinos = repository.getPagesByCategory(InMemoryColoringBookRepository.CATEGORY_DINOS)
+        assertEquals(4, dinos.size)
+        val dinoIds = dinos.map { it.id }.toSet()
+        assertEquals(
+            setOf("dino_stegosaurus", "dino_pteranodon", "dino_carnotaurus", "dino_ceratosaurus"),
+            dinoIds
+        )
     }
 
     @Test
@@ -75,6 +110,7 @@ class InMemoryColoringBookRepositoryTest {
         assertNotNull(puppy)
         assertEquals("Happy Puppy", puppy?.title)
         assertEquals("Animals & Pets", puppy?.category)
+        assertTrue((puppy?.regions?.size ?: 0) in 3..9)
     }
 
     @Test

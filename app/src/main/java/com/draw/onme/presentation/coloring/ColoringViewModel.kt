@@ -110,10 +110,14 @@ class ColoringViewModel(
             y = (point.y / CANONICAL_SIZE).coerceIn(0f, 1f)
         )
 
-        // Check if tap point falls inside a predefined vector template region
-        val hitRegion = page.regions.lastOrNull { region ->
-            PointInPolygon.contains(normalized, region.boundaryPoints)
-        } ?: return
+        // Check if tap point falls inside a predefined vector template region.
+        // When tap point is inside nested/overlapping regions (e.g. eyes inside face,
+        // snout inside head, rims inside wheels), select the smallest region so child
+        // features take precedence over enclosing containers!
+        val hitRegion = page.regions
+            .filter { PointInPolygon.contains(normalized, it.boundaryPoints) }
+            .minByOrNull { PointInPolygon.calculateArea(it.boundaryPoints) }
+            ?: return
 
         pushToUndoHistory()
         redoHistory.clear()

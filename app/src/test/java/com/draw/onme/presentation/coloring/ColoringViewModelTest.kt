@@ -33,6 +33,8 @@ class ColoringViewModelTest {
         override suspend fun getDraft(pageId: String): ColoringDraft? = savedDraft
         override suspend fun saveDraft(draft: ColoringDraft) { savedDraft = draft }
         override suspend fun clearDraft(pageId: String) { savedDraft = null }
+        override suspend fun getAllDrafts(): Map<String, ColoringDraft> =
+            savedDraft?.let { mapOf(it.pageId to it) } ?: emptyMap()
     }
 
     @Before
@@ -56,6 +58,33 @@ class ColoringViewModelTest {
         assertEquals(StrokeColor.Yellow.argb, state.fills["head"]?.argb)
         assertTrue(state.canUndo)
         assertFalse(state.canRedo)
+    }
+
+    @Test
+    fun testTapCanvas_nestedSubRegionSelection_selectsSmallestEnclosedRegion() = runTest {
+        val viewModel = ColoringViewModel("vehicle_race_car", bookRepo)
+
+        // 1. Tap rim (760, 680) - inside rim_front and wheel_front
+        viewModel.onAction(ColoringAction.SelectColor(StrokeColor(0xFFE0E0E0))) // Silver
+        viewModel.onAction(ColoringAction.TapCanvas(Point(760f, 680f)))
+        assertEquals(0xFFE0E0E0, viewModel.uiState.value.fills["rim_front"]?.argb)
+
+        // 2. Tap wheel outside rim (760, 750) - inside wheel_front, outside rim_front
+        viewModel.onAction(ColoringAction.SelectColor(StrokeColor(0xFF212121))) // Black
+        viewModel.onAction(ColoringAction.TapCanvas(Point(760f, 750f)))
+        assertEquals(0xFF212121, viewModel.uiState.value.fills["wheel_front"]?.argb)
+
+        // 3. Tap helmet visor (520, 480) - inside helmet_visor and driver_helmet
+        viewModel.onAction(ColoringAction.SelectColor(StrokeColor(0xFF00BCD4))) // Cyan
+        viewModel.onAction(ColoringAction.TapCanvas(Point(520f, 480f)))
+        assertEquals(0xFF00BCD4, viewModel.uiState.value.fills["helmet_visor"]?.argb)
+
+        // Verify fills
+        val fills = viewModel.uiState.value.fills
+        assertEquals(3, fills.size)
+        assertEquals(0xFFE0E0E0, fills["rim_front"]?.argb)
+        assertEquals(0xFF212121, fills["wheel_front"]?.argb)
+        assertEquals(0xFF00BCD4, fills["helmet_visor"]?.argb)
     }
 
     @Test

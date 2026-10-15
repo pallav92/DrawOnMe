@@ -1,5 +1,7 @@
 package com.draw.onme.data.repository
 
+import com.draw.onme.data.repository.catalog.DinoColoringPages
+import com.draw.onme.data.repository.catalog.VehicleColoringPages
 import com.draw.onme.domain.model.ColoringOutline
 import com.draw.onme.domain.model.ColoringPage
 import com.draw.onme.domain.model.ColoringRegion
@@ -12,6 +14,9 @@ import kotlin.math.sin
 /**
  * Curated in-memory coloring book library designed specifically for children aged 3–8.
  * Provides high-recognition vector shapes with closed fillable regions and bold line-art outlines.
+ *
+ * Geometric figures like vehicles maintain rich detail (>10 parts), while curved figures like
+ * animals, fantasy, and flowers are kept minimal and clean to avoid visual clutter.
  * All coordinates are normalized in the [0.0f..1.0f] range.
  */
 class InMemoryColoringBookRepository : ColoringBookRepository {
@@ -20,30 +25,22 @@ class InMemoryColoringBookRepository : ColoringBookRepository {
         // Creative Free Drawing
         createBlankCanvasPage(),
 
-        // Category 1: Animals & Pets
+        // Category 1: Animals & Pets (Minimal, clean, child-friendly)
         createHappyPuppyPage(),
         createPlayfulKittenPage(),
         createCheerfulDolphinPage(),
-        createWiseOwlPage(),
-
-        // Category 2: Vehicles & Adventures
-        createZoomingRaceCarPage(),
-        createBraveFireTruckPage(),
-        createSpaceShuttlePage(),
-        createDeepSubmarinePage(),
-
-        // Category 3: Fairy Tale & Fantasy
+        createWiseOwlPage()
+    ) + VehicleColoringPages + listOf(
+        // Category 3: Fairy Tale & Fantasy (Original minimal shapes)
         createFriendlyDragonPage(),
         createMagicCastlePage(),
         createFlutteringButterflyPage(),
         createFairyWandPage(),
 
-        // Category 4: Sweet Food & Nature
-        createSweetCupcakePage(),
-        createIceCreamSundaePage(),
+        // Category 4: Flowers & Nature (Original minimal nature shapes)
         createBloomingFlowerPage(),
         createRainbowSunPage()
-    )
+    ) + DinoColoringPages
 
     override fun getColoringPages(): List<ColoringPage> = pages
 
@@ -54,7 +51,8 @@ class InMemoryColoringBookRepository : ColoringBookRepository {
         CATEGORY_ANIMALS,
         CATEGORY_VEHICLES,
         CATEGORY_FANTASY,
-        CATEGORY_NATURE
+        CATEGORY_NATURE,
+        CATEGORY_DINOS
     )
 
     override fun getPagesByCategory(category: String): List<ColoringPage> =
@@ -66,7 +64,8 @@ class InMemoryColoringBookRepository : ColoringBookRepository {
         const val CATEGORY_ANIMALS = "Animals & Pets"
         const val CATEGORY_VEHICLES = "Vehicles & Adventures"
         const val CATEGORY_FANTASY = "Fairy Tale & Fantasy"
-        const val CATEGORY_NATURE = "Sweet Food & Nature"
+        const val CATEGORY_NATURE = "Flowers & Nature"
+        const val CATEGORY_DINOS = "Dinosaurs & Prehistoric"
 
         fun createBlankCanvasPage(): ColoringPage = ColoringPage(
             id = BLANK_CANVAS_ID,
@@ -282,153 +281,7 @@ class InMemoryColoringBookRepository : ColoringBookRepository {
         }
 
         // ==========================================
-        // 5. ZOOMING RACE CAR 🚗
-        // ==========================================
-        private fun createZoomingRaceCarPage(): ColoringPage {
-            val cabin = listOf(Point(0.30f, 0.50f), Point(0.42f, 0.30f), Point(0.66f, 0.30f), Point(0.76f, 0.50f))
-            val body = listOf(
-                Point(0.10f, 0.50f), Point(0.10f, 0.68f), Point(0.20f, 0.68f),
-                Point(0.36f, 0.68f), Point(0.64f, 0.68f), Point(0.80f, 0.68f),
-                Point(0.92f, 0.68f), Point(0.92f, 0.50f), Point(0.76f, 0.50f),
-                Point(0.30f, 0.50f)
-            )
-            val frontWheel = circlePoints(0.28f, 0.68f, 0.11f)
-            val rearWheel = circlePoints(0.72f, 0.68f, 0.11f)
-            val frontRim = circlePoints(0.28f, 0.68f, 0.05f)
-            val rearRim = circlePoints(0.72f, 0.68f, 0.05f)
-            val spoiler = listOf(Point(0.08f, 0.42f), Point(0.20f, 0.42f), Point(0.18f, 0.50f), Point(0.10f, 0.50f))
-
-            val regions = listOf(
-                ColoringRegion("cabin", "Roof & Cabin", cabin),
-                ColoringRegion("car_body", "Car Body", body),
-                ColoringRegion("front_wheel", "Front Tire", frontWheel),
-                ColoringRegion("rear_wheel", "Rear Tire", rearWheel),
-                ColoringRegion("front_rim", "Front Rim", frontRim),
-                ColoringRegion("rear_rim", "Rear Rim", rearRim),
-                ColoringRegion("spoiler", "Spoiler", spoiler)
-            )
-
-            val outlines = regions.map { ColoringOutline(it.boundaryPoints, strokeWidth = 5f, isClosed = true) } +
-                listOf(
-                    ColoringOutline(listOf(Point(0.36f, 0.48f), Point(0.44f, 0.34f), Point(0.50f, 0.34f), Point(0.50f, 0.48f)), strokeWidth = 4f, isClosed = true),
-                    ColoringOutline(listOf(Point(0.54f, 0.34f), Point(0.62f, 0.34f), Point(0.70f, 0.48f), Point(0.54f, 0.48f)), strokeWidth = 4f, isClosed = true)
-                )
-
-            return ColoringPage(
-                id = "zooming_race_car",
-                title = "Zooming Race Car",
-                category = CATEGORY_VEHICLES,
-                iconEmoji = "🏎️",
-                difficulty = "Easy",
-                regions = regions,
-                outlines = outlines
-            )
-        }
-
-        // ==========================================
-        // 6. BRAVE FIRE TRUCK 🚒
-        // ==========================================
-        private fun createBraveFireTruckPage(): ColoringPage {
-            val cab = listOf(Point(0.64f, 0.38f), Point(0.88f, 0.38f), Point(0.88f, 0.70f), Point(0.64f, 0.70f))
-            val tank = listOf(Point(0.14f, 0.44f), Point(0.64f, 0.44f), Point(0.64f, 0.70f), Point(0.14f, 0.70f))
-            val ladder = listOf(Point(0.16f, 0.36f), Point(0.60f, 0.36f), Point(0.60f, 0.42f), Point(0.16f, 0.42f))
-            val wheel1 = circlePoints(0.28f, 0.70f, 0.10f)
-            val wheel2 = circlePoints(0.76f, 0.70f, 0.10f)
-            val siren = listOf(Point(0.72f, 0.32f), Point(0.80f, 0.32f), Point(0.80f, 0.38f), Point(0.72f, 0.38f))
-
-            val regions = listOf(
-                ColoringRegion("cab", "Driver Cab", cab),
-                ColoringRegion("tank", "Water Tank", tank),
-                ColoringRegion("ladder", "Rescue Ladder", ladder),
-                ColoringRegion("wheel1", "Back Wheel", wheel1),
-                ColoringRegion("wheel2", "Front Wheel", wheel2),
-                ColoringRegion("siren", "Siren Light", siren)
-            )
-
-            val outlines = regions.map { ColoringOutline(it.boundaryPoints, strokeWidth = 5f, isClosed = true) } +
-                listOf(
-                    ColoringOutline(listOf(Point(0.72f, 0.42f), Point(0.84f, 0.42f), Point(0.84f, 0.54f), Point(0.72f, 0.54f)), strokeWidth = 4f, isClosed = true)
-                )
-
-            return ColoringPage(
-                id = "brave_fire_truck",
-                title = "Brave Fire Truck",
-                category = CATEGORY_VEHICLES,
-                iconEmoji = "🚒",
-                difficulty = "Medium",
-                regions = regions,
-                outlines = outlines
-            )
-        }
-
-        // ==========================================
-        // 7. SPACE SHUTTLE 🚀
-        // ==========================================
-        private fun createSpaceShuttlePage(): ColoringPage {
-            val nose = listOf(Point(0.36f, 0.30f), Point(0.50f, 0.10f), Point(0.64f, 0.30f))
-            val body = listOf(Point(0.36f, 0.30f), Point(0.36f, 0.68f), Point(0.64f, 0.68f), Point(0.64f, 0.30f))
-            val leftFin = listOf(Point(0.36f, 0.52f), Point(0.18f, 0.72f), Point(0.36f, 0.68f))
-            val rightFin = listOf(Point(0.64f, 0.52f), Point(0.82f, 0.72f), Point(0.64f, 0.68f))
-            val window = circlePoints(0.50f, 0.44f, 0.08f)
-            val fire = listOf(Point(0.40f, 0.68f), Point(0.44f, 0.84f), Point(0.50f, 0.94f), Point(0.56f, 0.84f), Point(0.60f, 0.68f))
-
-            val regions = listOf(
-                ColoringRegion("nose", "Nose Cone", nose),
-                ColoringRegion("body", "Rocket Body", body),
-                ColoringRegion("left_fin", "Left Fin", leftFin),
-                ColoringRegion("right_fin", "Right Fin", rightFin),
-                ColoringRegion("window", "Porthole Window", window),
-                ColoringRegion("fire", "Booster Flames", fire)
-            )
-
-            val outlines = regions.map { ColoringOutline(it.boundaryPoints, strokeWidth = 5f, isClosed = true) }
-
-            return ColoringPage(
-                id = "space_shuttle",
-                title = "Space Shuttle",
-                category = CATEGORY_VEHICLES,
-                iconEmoji = "🚀",
-                difficulty = "Easy",
-                regions = regions,
-                outlines = outlines
-            )
-        }
-
-        // ==========================================
-        // 8. DEEP SUBMARINE 🚢
-        // ==========================================
-        private fun createDeepSubmarinePage(): ColoringPage {
-            val hull = ovalPoints(0.50f, 0.54f, 0.34f, 0.18f)
-            val periscope = listOf(Point(0.46f, 0.36f), Point(0.46f, 0.22f), Point(0.56f, 0.22f), Point(0.56f, 0.28f), Point(0.52f, 0.28f), Point(0.52f, 0.36f))
-            val propeller = listOf(Point(0.14f, 0.46f), Point(0.10f, 0.54f), Point(0.14f, 0.62f))
-            val window1 = circlePoints(0.38f, 0.54f, 0.05f)
-            val window2 = circlePoints(0.52f, 0.54f, 0.05f)
-            val window3 = circlePoints(0.66f, 0.54f, 0.05f)
-
-            val regions = listOf(
-                ColoringRegion("hull", "Submarine Hull", hull),
-                ColoringRegion("periscope", "Periscope", periscope),
-                ColoringRegion("propeller", "Propeller", propeller),
-                ColoringRegion("window1", "Window 1", window1),
-                ColoringRegion("window2", "Window 2", window2),
-                ColoringRegion("window3", "Window 3", window3)
-            )
-
-            val outlines = regions.map { ColoringOutline(it.boundaryPoints, strokeWidth = 5f, isClosed = true) }
-
-            return ColoringPage(
-                id = "deep_submarine",
-                title = "Deep Submarine",
-                category = CATEGORY_VEHICLES,
-                iconEmoji = "🫧",
-                difficulty = "Easy",
-                regions = regions,
-                outlines = outlines
-            )
-        }
-
-        // ==========================================
-        // 9. FRIENDLY DRAGON 🐉
+        // 5. FRIENDLY DRAGON 🐲
         // ==========================================
         private fun createFriendlyDragonPage(): ColoringPage {
             val head = circlePoints(0.40f, 0.34f, 0.16f)
@@ -465,7 +318,7 @@ class InMemoryColoringBookRepository : ColoringBookRepository {
         }
 
         // ==========================================
-        // 10. MAGIC CASTLE 🏰
+        // 6. MAGIC CASTLE 🏰
         // ==========================================
         private fun createMagicCastlePage(): ColoringPage {
             val mainKeep = listOf(Point(0.34f, 0.48f), Point(0.66f, 0.48f), Point(0.66f, 0.86f), Point(0.34f, 0.86f))
@@ -501,7 +354,7 @@ class InMemoryColoringBookRepository : ColoringBookRepository {
         }
 
         // ==========================================
-        // 11. FLUTTERING BUTTERFLY 🦋
+        // 7. FLUTTERING BUTTERFLY 🦋
         // ==========================================
         private fun createFlutteringButterflyPage(): ColoringPage {
             val body = ovalPoints(0.50f, 0.50f, 0.05f, 0.26f)
@@ -536,10 +389,9 @@ class InMemoryColoringBookRepository : ColoringBookRepository {
         }
 
         // ==========================================
-        // 12. FAIRY WAND ✨
+        // 8. FAIRY STAR WAND ✨
         // ==========================================
         private fun createFairyWandPage(): ColoringPage {
-            // 5-pointed star
             val starPoints = mutableListOf<Point>()
             for (i in 0 until 10) {
                 val r = if (i % 2 == 0) 0.20f else 0.09f
@@ -569,72 +421,7 @@ class InMemoryColoringBookRepository : ColoringBookRepository {
         }
 
         // ==========================================
-        // 13. SWEET CUPCAKE 🧁
-        // ==========================================
-        private fun createSweetCupcakePage(): ColoringPage {
-            val cherry = circlePoints(0.50f, 0.22f, 0.07f)
-            val frostingTop = listOf(Point(0.34f, 0.38f), Point(0.50f, 0.28f), Point(0.66f, 0.38f), Point(0.50f, 0.44f))
-            val frostingBase = listOf(
-                Point(0.20f, 0.54f), Point(0.32f, 0.44f), Point(0.50f, 0.42f),
-                Point(0.68f, 0.44f), Point(0.80f, 0.54f), Point(0.50f, 0.60f)
-            )
-            val wrapper = listOf(Point(0.25f, 0.58f), Point(0.75f, 0.58f), Point(0.68f, 0.88f), Point(0.32f, 0.88f))
-
-            val regions = listOf(
-                ColoringRegion("cherry", "Cherry on Top", cherry),
-                ColoringRegion("frosting_top", "Swirly Frosting", frostingTop),
-                ColoringRegion("frosting_base", "Cream Frosting", frostingBase),
-                ColoringRegion("cupcake_wrapper", "Cupcake Wrapper", wrapper)
-            )
-
-            val outlines = regions.map { ColoringOutline(it.boundaryPoints, strokeWidth = 5f, isClosed = true) }
-
-            return ColoringPage(
-                id = "sweet_cupcake",
-                title = "Sweet Cupcake",
-                category = CATEGORY_NATURE,
-                iconEmoji = "🧁",
-                difficulty = "Easy",
-                regions = regions,
-                outlines = outlines
-            )
-        }
-
-        // ==========================================
-        // 14. ICE CREAM SUNDAE 🍨
-        // ==========================================
-        private fun createIceCreamSundaePage(): ColoringPage {
-            val scoopTop = circlePoints(0.50f, 0.34f, 0.16f)
-            val scoopBottom = circlePoints(0.50f, 0.48f, 0.18f)
-            val cone = listOf(Point(0.32f, 0.52f), Point(0.68f, 0.52f), Point(0.50f, 0.90f))
-            val cherry = circlePoints(0.50f, 0.16f, 0.05f)
-
-            val regions = listOf(
-                ColoringRegion("cherry", "Sundae Cherry", cherry),
-                ColoringRegion("scoop_top", "Top Ice Cream Scoop", scoopTop),
-                ColoringRegion("scoop_bottom", "Bottom Ice Cream Scoop", scoopBottom),
-                ColoringRegion("waffle_cone", "Crispy Cone", cone)
-            )
-
-            val outlines = regions.map { ColoringOutline(it.boundaryPoints, strokeWidth = 5f, isClosed = true) } +
-                listOf(
-                    ColoringOutline(listOf(Point(0.38f, 0.60f), Point(0.56f, 0.78f)), strokeWidth = 3f, isClosed = false),
-                    ColoringOutline(listOf(Point(0.62f, 0.60f), Point(0.44f, 0.78f)), strokeWidth = 3f, isClosed = false)
-                )
-
-            return ColoringPage(
-                id = "ice_cream_sundae",
-                title = "Ice Cream Cone",
-                category = CATEGORY_NATURE,
-                iconEmoji = "🍦",
-                difficulty = "Easy",
-                regions = regions,
-                outlines = outlines
-            )
-        }
-
-        // ==========================================
-        // 15. BLOOMING FLOWER 🌸
+        // 9. BLOOMING FLOWER 🌸
         // ==========================================
         private fun createBloomingFlowerPage(): ColoringPage {
             val center = circlePoints(0.50f, 0.38f, 0.10f)
@@ -671,7 +458,7 @@ class InMemoryColoringBookRepository : ColoringBookRepository {
         }
 
         // ==========================================
-        // 16. RAINBOW SUN 🌈
+        // 10. RAINBOW SUN 🌈
         // ==========================================
         private fun createRainbowSunPage(): ColoringPage {
             val sun = circlePoints(0.24f, 0.30f, 0.14f)

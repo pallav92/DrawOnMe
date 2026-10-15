@@ -94,4 +94,18 @@ class FileColoringDraftRepositoryTest {
         assertEquals(1, loaded?.customFills?.first()?.spans?.size)
         assertEquals(200f, loaded?.customFills?.first()?.spans?.first()?.y)
     }
+
+    @Test
+    fun testGetAllDrafts_returnsAllSavedDrafts() = runBlocking {
+        val draft1 = ColoringDraft(pageId = "puppy", fills = mapOf("head" to StrokeColor.Yellow))
+        val draft2 = ColoringDraft(pageId = "kitten", fills = mapOf("tail" to StrokeColor.Orange))
+
+        repository.saveDraft(draft1)
+        repository.saveDraft(draft2)
+
+        val all = repository.getAllDrafts()
+        assertEquals(2, all.size)
+        assertEquals(StrokeColor.Yellow.argb, all["puppy"]?.fills?.get("head")?.argb)
+        assertEquals(StrokeColor.Orange.argb, all["kitten"]?.fills?.get("tail")?.argb)
+    }
 }

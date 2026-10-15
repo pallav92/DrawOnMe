@@ -22,4 +22,9 @@ interface ColoringDraftRepository {
      * Removes the draft for [pageId].
      */
     suspend fun clearDraft(pageId: String)
+
+    /**
+     * Retrieves all saved drafts across all pages, mapped by page ID.
+     */
+    suspend fun getAllDrafts(): Map<String, ColoringDraft>
 }

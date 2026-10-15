@@ -50,16 +50,25 @@ data class ColoringUiState(
 
     companion object {
         /**
-         * Curated lightweight child-friendly palette fitting cleanly on mobile screens.
+         * Curated rich child-friendly palette fitting cleanly on scrollable toolbar.
          */
         val QuickPalette: List<StrokeColor> = listOf(
             StrokeColor(0xFFE53935), // Cherry Red
+            StrokeColor(0xFFF06292), // Bubblegum Pink
             StrokeColor(0xFFFB8C00), // Tangerine Orange
             StrokeColor(0xFFFDD835), // Sunny Yellow
+            StrokeColor(0xFFFFF176), // Pastel Lemon
+            StrokeColor(0xFF8BC34A), // Lime Green
             StrokeColor(0xFF43A047), // Grass Green
+            StrokeColor(0xFF26A69A), // Mint Teal
             StrokeColor(0xFF00ACC1), // Sky Cyan
             StrokeColor(0xFF1E88E5), // Ocean Blue
+            StrokeColor(0xFF3F51B5), // Royal Indigo
             StrokeColor(0xFF8E24AA), // Magic Purple
+            StrokeColor(0xFFBA68C8), // Soft Lavender
+            StrokeColor(0xFFFFCC80), // Warm Peach
+            StrokeColor(0xFF8D6E63), // Teddy Brown
+            StrokeColor(0xFF4E342E), // Chocolate Brown
             StrokeColor(0xFFFFFFFF), // Chalk White
             StrokeColor(0xFF212121)  // Classic Charcoal
         )
@@ -67,19 +76,7 @@ data class ColoringUiState(
         /**
          * Extended child-friendly palette for coloring books.
          */
-        val ExtendedPalette: List<StrokeColor> = listOf(
-            StrokeColor(0xFFE53935), // Cherry Red
-            StrokeColor(0xFFFB8C00), // Tangerine Orange
-            StrokeColor(0xFFFDD835), // Sunny Yellow
-            StrokeColor(0xFF43A047), // Grass Green
-            StrokeColor(0xFF00ACC1), // Sky Cyan
-            StrokeColor(0xFF1E88E5), // Ocean Blue
-            StrokeColor(0xFF8E24AA), // Magic Purple
-            StrokeColor(0xFFEC407A), // Bubblegum Pink
-            StrokeColor(0xFF8D6E63), // Teddy Brown
-            StrokeColor(0xFFFFFFFF), // Chalk White
-            StrokeColor(0xFF212121)  // Classic Charcoal
-        )
+        val ExtendedPalette: List<StrokeColor> = QuickPalette
     }
 }
 

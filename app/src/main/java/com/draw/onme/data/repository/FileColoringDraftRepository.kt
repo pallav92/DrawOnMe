@@ -159,6 +159,22 @@ class FileColoringDraftRepository(
         }
     }
 
+    override suspend fun getAllDrafts(): Map<String, ColoringDraft> = withContext(Dispatchers.IO) {
+        if (!storageDir.exists()) return@withContext emptyMap()
+        val files = storageDir.listFiles { _, name -> name.startsWith("coloring_") && name.endsWith(".json") }
+            ?: return@withContext emptyMap()
+
+        val result = mutableMapOf<String, ColoringDraft>()
+        for (file in files) {
+            val pageId = file.name.removePrefix("coloring_").removeSuffix(".json")
+            val draft = getDraft(pageId)
+            if (draft != null) {
+                result[draft.pageId] = draft
+            }
+        }
+        result
+    }
+
     private fun getDraftFile(pageId: String): File {
         val sanitized = pageId.replace(Regex("[^a-zA-Z0-9._-]"), "_")
         return File(storageDir, "coloring_$sanitized.json")

@@ -34,9 +34,11 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -45,21 +47,32 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.draw.onme.data.repository.InMemoryColoringBookRepository
+import com.draw.onme.domain.model.ColoringDraft
 import com.draw.onme.domain.repository.ColoringBookRepository
+import com.draw.onme.domain.repository.ColoringDraftRepository
 import com.draw.onme.presentation.coloring.gallery.components.ColoringCard
+import kotlinx.coroutines.launch
 
 /**
  * Screen displaying the Coloring Book album gallery.
- * Allows children to filter pages by themed categories, start a fresh blank canvas,
- * or pick a page to color.
+ * Displays completed artworks rendered in the user's actual chosen colors,
+ * completion badges, and instant "Color Again" retry buttons.
  */
 @Composable
 fun ColoringGalleryScreen(
     onSelectPage: (String) -> Unit,
     onNavigateBack: () -> Unit,
     modifier: Modifier = Modifier,
-    repository: ColoringBookRepository = remember { InMemoryColoringBookRepository() }
+    repository: ColoringBookRepository = remember { InMemoryColoringBookRepository() },
+    draftRepository: ColoringDraftRepository? = null
 ) {
+    val coroutineScope = rememberCoroutineScope()
+    var drafts by remember { mutableStateOf<Map<String, ColoringDraft>>(emptyMap()) }
+
+    LaunchedEffect(Unit) {
+        drafts = draftRepository?.getAllDrafts() ?: emptyMap()
+    }
+
     val categories = remember { listOf("All") + repository.getCategories() }
     var selectedCategory by remember { mutableStateOf("All") }
 
@@ -149,11 +162,24 @@ fun ColoringGalleryScreen(
                     key = { it.id },
                     contentType = { if (it.outlines.isEmpty()) "blank_canvas" else "template" }
                 ) { page ->
+                    val draft = drafts[page.id]
                     val onCardClick = remember(page.id, onSelectPage) {
                         { onSelectPage(page.id) }
                     }
+                    val onRetry: (() -> Unit)? = remember(page.id, draftRepository) {
+                        if (draftRepository != null) {
+                            {
+                                coroutineScope.launch {
+                                    draftRepository.clearDraft(page.id)
+                                    drafts = drafts - page.id
+                                }
+                            }
+                        } else null
+                    }
                     ColoringCard(
                         page = page,
+                        draft = draft,
+                        onRetry = onRetry,
                         onClick = onCardClick
                     )
                 }
@@ -171,10 +197,11 @@ private fun CategoryFilterChip(
 ) {
     val emoji = when (category) {
         InMemoryColoringBookRepository.CATEGORY_CREATE -> "🎨 "
-        "Animals & Pets" -> "🐶 "
-        "Vehicles & Adventures" -> "🚗 "
-        "Fairy Tale & Fantasy" -> "🦄 "
-        "Sweet Food & Nature" -> "🍓 "
+        InMemoryColoringBookRepository.CATEGORY_ANIMALS -> "🐶 "
+        InMemoryColoringBookRepository.CATEGORY_VEHICLES -> "🚗 "
+        InMemoryColoringBookRepository.CATEGORY_FANTASY -> "🦄 "
+        InMemoryColoringBookRepository.CATEGORY_NATURE -> "🌸 "
+        InMemoryColoringBookRepository.CATEGORY_DINOS -> "🦖 "
         else -> "✨ "
     }
 
