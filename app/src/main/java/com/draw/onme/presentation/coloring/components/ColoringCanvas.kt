@@ -22,8 +22,11 @@ import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Fill
 import androidx.compose.ui.graphics.drawscope.clipPath
+import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.graphics.drawscope.withTransform
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.nativeCanvas
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
 import com.draw.onme.domain.model.ColoringPage
@@ -31,6 +34,7 @@ import com.draw.onme.domain.model.ColoringRegion
 import com.draw.onme.domain.model.ColoringTool
 import com.draw.onme.domain.model.DrawingTool
 import com.draw.onme.domain.model.PointInPolygon
+import com.draw.onme.domain.model.RegionLabelPlacement
 import com.draw.onme.domain.model.Stroke
 import com.draw.onme.presentation.coloring.ColoringAction
 import com.draw.onme.presentation.coloring.ColoringUiState
@@ -73,6 +77,39 @@ fun ColoringCanvas(
     // and smaller details (eyes, nose, pupils, inner ears) render on top
     val sortedRegions = remember(page) {
         page?.regions?.sortedByDescending { PointInPolygon.calculateArea(it.boundaryPoints) } ?: emptyList()
+    }
+
+    // Where to print each region's number so nested/concentric and clustered regions don't print
+    // on top of each other - purely a function of the page's geometry, so computed once per page.
+    val labelPoints = remember(page) {
+        page?.regions?.let { RegionLabelPlacement.computeLabelPoints(it, page.outlines) } ?: emptyMap()
+    }
+
+    // How large to print each number: small shapes get smaller text, and so does any region
+    // whose label ended up close to a neighbor's (a tightly packed cluster) or close to a drawn
+    // line it couldn't fully clear, so text never spills past its own shape, crowds into the
+    // label next to it, or reads as sitting on top of the ink.
+    val labelFontSizes = remember(page, labelPoints) {
+        val regions = page?.regions.orEmpty()
+        val outlines = page?.outlines.orEmpty()
+        regions.associate { region ->
+            val shapeRadius = kotlin.math.sqrt(PointInPolygon.calculateArea(region.boundaryPoints) / Math.PI).toFloat()
+            val myPoint = labelPoints[region.id]
+            val nearestNeighborDistance = myPoint?.let { point ->
+                regions.asSequence()
+                    .filter { it.id != region.id }
+                    .mapNotNull { other -> labelPoints[other.id] }
+                    .minOfOrNull { other ->
+                        kotlin.math.hypot((point.x - other.x).toDouble(), (point.y - other.y).toDouble()).toFloat()
+                    }
+            } ?: Float.MAX_VALUE
+            val nearestLineDistance = myPoint?.let { RegionLabelPlacement.distanceToNearestLine(it, outlines) }
+                ?: Float.MAX_VALUE
+            val sizeFromShape = shapeRadius * CANONICAL_SIZE * 0.8f
+            val sizeFromSpacing = nearestNeighborDistance * CANONICAL_SIZE * 0.55f
+            val sizeFromLineClearance = nearestLineDistance * CANONICAL_SIZE * 0.9f
+            region.id to minOf(sizeFromShape, sizeFromSpacing, sizeFromLineClearance).coerceIn(10f, 24f)
+        }
     }
 
     Box(
@@ -292,6 +329,35 @@ fun ColoringCanvas(
                             color = Color(color.argb),
                             style = Fill
                         )
+                    }
+                }
+
+                // Layer 1a: Paint by Number helpers - a brief red flash on a wrong-color tap,
+                // and the region's number printed over every unfilled region.
+                if (page != null && uiState.isPaintByNumber) {
+                    uiState.incorrectTapRegionId?.let { regionId ->
+                        regionPaths[regionId]?.let { path ->
+                            drawPath(path = path, color = Color(0xFFE53935).copy(alpha = 0.35f), style = Fill)
+                        }
+                    }
+
+                    val numberByColorArgb = uiState.numberByColorArgb
+                    drawIntoCanvas { canvas ->
+                        val paint = android.graphics.Paint().apply {
+                            color = outlineColor.toArgb()
+                            textAlign = android.graphics.Paint.Align.CENTER
+                            isAntiAlias = true
+                            isFakeBoldText = true
+                        }
+                        for (region in page.regions) {
+                            if (uiState.fills.containsKey(region.id)) continue
+                            val number = numberByColorArgb[page.effectiveTargetColor(region).argb] ?: continue
+                            val point = labelPoints[region.id] ?: continue
+                            paint.textSize = labelFontSizes[region.id] ?: 24f
+                            val cx = point.x * CANONICAL_SIZE
+                            val cy = point.y * CANONICAL_SIZE
+                            canvas.nativeCanvas.drawText(number.toString(), cx, cy + paint.textSize / 3f, paint)
+                        }
                     }
                 }
 

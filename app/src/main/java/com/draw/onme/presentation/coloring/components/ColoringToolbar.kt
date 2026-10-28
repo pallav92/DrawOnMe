@@ -36,11 +36,17 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.material3.Text
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import com.draw.onme.domain.model.ColoringMode
 import com.draw.onme.domain.model.ColoringTool
 import com.draw.onme.presentation.coloring.ColoringAction
 import com.draw.onme.presentation.coloring.ColoringUiState
@@ -87,12 +93,22 @@ fun ColoringToolbar(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                // Tool Switchover button for templates, or dedicated Crayon badge for user creations
+                // Number/Free Mode switcher + Tool Switchover for templates, or dedicated Crayon badge for user creations
                 if (uiState.supportsBucketFill) {
-                    ColoringToolSwitcher(
-                        selectedTool = uiState.selectedTool,
-                        onSelectTool = { tool -> onAction(ColoringAction.SelectTool(tool)) }
-                    )
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        ColoringModeSwitcher(
+                            mode = uiState.coloringMode,
+                            onSelectMode = { mode -> onAction(ColoringAction.SelectColoringMode(mode)) }
+                        )
+                        ColoringToolSwitcher(
+                            selectedTool = uiState.selectedTool,
+                            onSelectTool = { tool -> onAction(ColoringAction.SelectTool(tool)) },
+                            showCrayon = !uiState.isPaintByNumber
+                        )
+                    }
                 } else {
                     Surface(
                         shape = RoundedCornerShape(20.dp),
@@ -222,6 +238,7 @@ fun ColoringToolbar(
                 for (color in uiState.availableColors) {
                     val isSelected = color.argb == uiState.selectedColor.argb
                     val composeColor = Color(color.argb)
+                    val number = if (uiState.isPaintByNumber) uiState.numberByColorArgb[color.argb] else null
 
                     Box(
                         modifier = Modifier
@@ -238,25 +255,35 @@ fun ColoringToolbar(
                             },
                         contentAlignment = Alignment.Center
                     ) {
-                        if (isSelected) {
-                            val lum = 0.299f * composeColor.red + 0.587f * composeColor.green + 0.114f * composeColor.blue
-                            val dotColor = if (lum > 0.65f) Color(0xFF212121) else Color.White
+                        val lum = 0.299f * composeColor.red + 0.587f * composeColor.green + 0.114f * composeColor.blue
+                        val contrastColor = if (lum > 0.65f) Color(0xFF212121) else Color.White
+                        if (number != null) {
+                            Text(
+                                text = number.toString(),
+                                color = contrastColor,
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        } else if (isSelected) {
                             Box(
                                 modifier = Modifier
                                     .size(8.dp)
                                     .clip(CircleShape)
-                                    .background(dotColor)
+                                    .background(contrastColor)
                             )
                         }
                     }
                 }
 
-                // Dedicated Color Picker button
-                ColorPickerButton(
-                    onClick = { showColorPicker = true },
-                    size = 30.dp,
-                    iconSize = 16.dp
-                )
+                // Dedicated Color Picker button - hidden for Paint by Number so free color
+                // choice can't bypass the numbered matching.
+                if (!uiState.isPaintByNumber) {
+                    ColorPickerButton(
+                        onClick = { showColorPicker = true },
+                        size = 30.dp,
+                        iconSize = 16.dp
+                    )
+                }
             }
         }
     }
@@ -273,6 +300,75 @@ fun ColoringToolbar(
 }
 
 /**
+ * Switchover button toggling between Number Mode (numbered swatches, strict matching) and
+ * Free Mode (any color, crayon allowed). Opens in Number Mode by default on every template page.
+ */
+@Composable
+private fun ColoringModeSwitcher(
+    mode: ColoringMode,
+    onSelectMode: (ColoringMode) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Surface(
+        modifier = modifier,
+        shape = RoundedCornerShape(16.dp),
+        color = MaterialTheme.colorScheme.surfaceContainerHighest,
+        tonalElevation = 2.dp
+    ) {
+        Row(
+            modifier = Modifier.padding(2.dp),
+            horizontalArrangement = Arrangement.spacedBy(2.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            ColoringModeTextButton(
+                selected = mode == ColoringMode.NUMBER,
+                label = "🔢",
+                contentDescription = "Paint by Number Mode",
+                onClick = { onSelectMode(ColoringMode.NUMBER) }
+            )
+            ColoringModeTextButton(
+                selected = mode == ColoringMode.FREE,
+                label = "🎨",
+                contentDescription = "Free Color Mode",
+                onClick = { onSelectMode(ColoringMode.FREE) }
+            )
+        }
+    }
+}
+
+@Composable
+private fun ColoringModeTextButton(
+    selected: Boolean,
+    label: String,
+    contentDescription: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val backgroundColor by animateColorAsState(
+        targetValue = if (selected) MaterialTheme.colorScheme.primaryContainer else Color.Transparent,
+        label = "ModeBackground"
+    )
+
+    Surface(
+        selected = selected,
+        onClick = onClick,
+        shape = RoundedCornerShape(12.dp),
+        color = backgroundColor,
+        modifier = modifier
+    ) {
+        Box(
+            modifier = Modifier
+                .size(34.dp)
+                .clickable(onClick = onClick, role = Role.Button)
+                .semantics { this.contentDescription = contentDescription },
+            contentAlignment = Alignment.Center
+        ) {
+            Text(text = label, fontSize = 16.sp)
+        }
+    }
+}
+
+/**
  * Switchover button allowing immediate toggling between Bucket (Fill) and Crayon (Drawing).
  * Clean, icon-only design language without cluttered text.
  */
@@ -280,6 +376,7 @@ fun ColoringToolbar(
 private fun ColoringToolSwitcher(
     selectedTool: ColoringTool,
     onSelectTool: (ColoringTool) -> Unit,
+    showCrayon: Boolean = true,
     modifier: Modifier = Modifier
 ) {
     Surface(
@@ -299,12 +396,14 @@ private fun ColoringToolSwitcher(
                 contentDescription = "Bucket Fill Mode",
                 onClick = { onSelectTool(ColoringTool.BUCKET) }
             )
-            ColoringToolIconButton(
-                selected = selectedTool == ColoringTool.MAGIC_CRAYON,
-                icon = Icons.Default.Draw,
-                contentDescription = "Magic Crayon Mode",
-                onClick = { onSelectTool(ColoringTool.MAGIC_CRAYON) }
-            )
+            if (showCrayon) {
+                ColoringToolIconButton(
+                    selected = selectedTool == ColoringTool.MAGIC_CRAYON,
+                    icon = Icons.Default.Draw,
+                    contentDescription = "Magic Crayon Mode",
+                    onClick = { onSelectTool(ColoringTool.MAGIC_CRAYON) }
+                )
+            }
         }
     }
 }

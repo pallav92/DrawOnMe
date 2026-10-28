@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.draw.onme.domain.model.ClosedAreaFill
 import com.draw.onme.domain.model.ClosedAreaFloodFiller
 import com.draw.onme.domain.model.ColoringDraft
+import com.draw.onme.domain.model.ColoringMode
 import com.draw.onme.domain.model.ColoringTool
 import com.draw.onme.domain.model.DrawingTool
 import com.draw.onme.domain.model.Point
@@ -13,6 +14,7 @@ import com.draw.onme.domain.model.Stroke
 import com.draw.onme.domain.model.StrokeColor
 import com.draw.onme.domain.repository.ColoringBookRepository
 import com.draw.onme.domain.repository.ColoringDraftRepository
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -57,7 +59,16 @@ class ColoringViewModel(
                 ColoringTool.BUCKET
             } else {
                 ColoringTool.MAGIC_CRAYON
-            }
+            },
+            coloringMode = if (loadedPage != null && loadedPage.regions.isNotEmpty()) {
+                ColoringMode.NUMBER
+            } else {
+                ColoringMode.FREE
+            },
+            availableColors = loadedPage?.takeIf { it.regions.isNotEmpty() }?.effectiveNumberedPalette
+                ?: ColoringUiState.QuickPalette,
+            selectedColor = loadedPage?.takeIf { it.regions.isNotEmpty() }?.effectiveNumberedPalette?.firstOrNull()
+                ?: StrokeColor.Red
         )
     )
     val uiState: StateFlow<ColoringUiState> = _uiState.asStateFlow()
@@ -90,6 +101,7 @@ class ColoringViewModel(
             is ColoringAction.CancelStroke -> handleCancelStroke()
             is ColoringAction.SelectTool -> handleSelectTool(action.tool)
             is ColoringAction.SelectColor -> handleSelectColor(action.color)
+            is ColoringAction.SelectColoringMode -> handleSelectColoringMode(action.mode)
             is ColoringAction.SetStrokeWidth -> handleSetStrokeWidth(action.width)
             is ColoringAction.Undo -> handleUndo()
             is ColoringAction.Redo -> handleRedo()
@@ -119,6 +131,12 @@ class ColoringViewModel(
             .minByOrNull { PointInPolygon.calculateArea(it.boundaryPoints) }
             ?: return
 
+        // Number Mode: only the color matching this region's number may fill it.
+        if (_uiState.value.isPaintByNumber && page.effectiveTargetColor(hitRegion).argb != newColor.argb) {
+            rejectIncorrectTap(hitRegion.id)
+            return
+        }
+
         pushToUndoHistory()
         redoHistory.clear()
 
@@ -128,11 +146,22 @@ class ColoringViewModel(
         _uiState.update {
             it.copy(
                 fills = updatedFills,
+                incorrectTapRegionId = null,
                 canUndo = true,
                 canRedo = false
             )
         }
         persistDraft()
+    }
+
+    private fun rejectIncorrectTap(regionId: String) {
+        _uiState.update { it.copy(incorrectTapRegionId = regionId) }
+        viewModelScope.launch {
+            delay(INCORRECT_TAP_FLASH_MS)
+            _uiState.update { state ->
+                if (state.incorrectTapRegionId == regionId) state.copy(incorrectTapRegionId = null) else state
+            }
+        }
     }
 
     private fun handleStartStroke(point: Point) {
@@ -198,12 +227,16 @@ class ColoringViewModel(
         if (!_uiState.value.supportsBucketFill && tool == ColoringTool.BUCKET) {
             return
         }
+        // Paint by Number is Bucket-only; free crayon strokes would bypass the number matching.
+        if (_uiState.value.isPaintByNumber && tool != ColoringTool.BUCKET) {
+            return
+        }
         _uiState.update { it.copy(selectedTool = tool) }
     }
 
     private fun handleSelectColor(color: StrokeColor) {
         _uiState.update { state ->
-            val updatedColors = if (state.availableColors.any { it.argb == color.argb }) {
+            val updatedColors = if (state.isPaintByNumber || state.availableColors.any { it.argb == color.argb }) {
                 state.availableColors
             } else {
                 listOf(color) + state.availableColors
@@ -212,6 +245,31 @@ class ColoringViewModel(
                 selectedColor = color,
                 availableColors = updatedColors
             )
+        }
+    }
+
+    private fun handleSelectColoringMode(mode: ColoringMode) {
+        val page = _uiState.value.page ?: return
+        // Blank canvases have no numbered regions; they stay in free crayon mode always.
+        if (page.regions.isEmpty()) return
+
+        _uiState.update { state ->
+            if (state.coloringMode == mode) return@update state
+            when (mode) {
+                ColoringMode.NUMBER -> state.copy(
+                    coloringMode = mode,
+                    selectedTool = ColoringTool.BUCKET,
+                    availableColors = page.effectiveNumberedPalette,
+                    selectedColor = page.effectiveNumberedPalette.firstOrNull() ?: state.selectedColor,
+                    incorrectTapRegionId = null
+                )
+                ColoringMode.FREE -> state.copy(
+                    coloringMode = mode,
+                    availableColors = ColoringUiState.QuickPalette,
+                    selectedColor = ColoringUiState.QuickPalette.firstOrNull() ?: state.selectedColor,
+                    incorrectTapRegionId = null
+                )
+            }
         }
     }
 
@@ -321,6 +379,7 @@ class ColoringViewModel(
     companion object {
         const val CANONICAL_SIZE: Float = 1000f
         private const val MAX_HISTORY_SIZE: Int = 30
+        private const val INCORRECT_TAP_FLASH_MS: Long = 350L
 
         fun provideFactory(
             pageId: String,

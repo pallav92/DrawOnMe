@@ -2,6 +2,7 @@ package com.draw.onme.presentation.coloring
 
 import com.draw.onme.data.repository.InMemoryColoringBookRepository
 import com.draw.onme.domain.model.ColoringDraft
+import com.draw.onme.domain.model.ColoringMode
 import com.draw.onme.domain.model.ColoringTool
 import com.draw.onme.domain.model.Point
 import com.draw.onme.domain.model.StrokeColor
@@ -50,6 +51,8 @@ class ColoringViewModelTest {
     @Test
     fun testTapCanvas_fillsHitRegion() = runTest {
         val viewModel = ColoringViewModel("happy_puppy", bookRepo)
+        // Free Mode allows any color on any region; Number Mode is covered by the PBN tests below.
+        viewModel.onAction(ColoringAction.SelectColoringMode(ColoringMode.FREE))
         // Forehead of puppy is at (500, 280)
         viewModel.onAction(ColoringAction.SelectColor(StrokeColor.Yellow))
         viewModel.onAction(ColoringAction.TapCanvas(Point(500f, 280f)))
@@ -63,6 +66,7 @@ class ColoringViewModelTest {
     @Test
     fun testTapCanvas_nestedSubRegionSelection_selectsSmallestEnclosedRegion() = runTest {
         val viewModel = ColoringViewModel("vehicle_race_car", bookRepo)
+        viewModel.onAction(ColoringAction.SelectColoringMode(ColoringMode.FREE))
 
         // 1. Tap rim (760, 680) - inside rim_front and wheel_front
         viewModel.onAction(ColoringAction.SelectColor(StrokeColor(0xFFE0E0E0))) // Silver
@@ -101,6 +105,7 @@ class ColoringViewModelTest {
     @Test
     fun testUndoRedo_forBucketFills() = runTest {
         val viewModel = ColoringViewModel("happy_puppy", bookRepo)
+        viewModel.onAction(ColoringAction.SelectColoringMode(ColoringMode.FREE))
         viewModel.onAction(ColoringAction.SelectColor(StrokeColor.Blue))
         viewModel.onAction(ColoringAction.TapCanvas(Point(500f, 280f))) // Forehead
 
@@ -118,6 +123,7 @@ class ColoringViewModelTest {
     @Test
     fun testMagicCrayonStroke_lifecycle_canDrawAnywhere() = runTest {
         val viewModel = ColoringViewModel("happy_puppy", bookRepo)
+        viewModel.onAction(ColoringAction.SelectColoringMode(ColoringMode.FREE))
         viewModel.onAction(ColoringAction.SelectTool(ColoringTool.MAGIC_CRAYON))
         viewModel.onAction(ColoringAction.StartStroke(Point(500f, 280f)))
 
@@ -142,6 +148,8 @@ class ColoringViewModelTest {
         assertTrue("Templates must support bucket fill", state.supportsBucketFill)
         assertEquals(ColoringTool.BUCKET, state.selectedTool)
 
+        viewModel.onAction(ColoringAction.SelectColoringMode(ColoringMode.FREE))
+
         // 1. Bucket fill on puppy forehead
         viewModel.onAction(ColoringAction.SelectColor(StrokeColor.Orange))
         viewModel.onAction(ColoringAction.TapCanvas(Point(500f, 280f)))
@@ -163,6 +171,7 @@ class ColoringViewModelTest {
     @Test
     fun testClearConfirmation_clearsFillsAndStrokes() = runTest {
         val viewModel = ColoringViewModel("happy_puppy", bookRepo)
+        viewModel.onAction(ColoringAction.SelectColoringMode(ColoringMode.FREE))
         viewModel.onAction(ColoringAction.TapCanvas(Point(500f, 380f)))
         assertEquals(1, viewModel.uiState.value.fills.size)
 
@@ -191,6 +200,7 @@ class ColoringViewModelTest {
     @Test
     fun testSelectColor_prependsCustomColorToAvailableColors() = runTest {
         val viewModel = ColoringViewModel("happy_puppy", bookRepo)
+        viewModel.onAction(ColoringAction.SelectColoringMode(ColoringMode.FREE))
         val customColor = StrokeColor(0xFF00E5FF) // Electric Cyan
 
         viewModel.onAction(ColoringAction.SelectColor(customColor))
@@ -198,6 +208,110 @@ class ColoringViewModelTest {
         val state = viewModel.uiState.value
         assertEquals(customColor.argb, state.selectedColor.argb)
         assertEquals(customColor.argb, state.availableColors.first().argb)
+    }
+
+    @Test
+    fun testPaintByNumber_wrongColorTapIsRejectedAndFlashesRegion() = runTest {
+        val viewModel = ColoringViewModel("pbn_rainbow_flower", bookRepo)
+        val state = viewModel.uiState.value
+        assertTrue("PBN page must report isPaintByNumber", state.isPaintByNumber)
+
+        // Default selected color is the page's first numbered color (brown center), not red.
+        viewModel.onAction(ColoringAction.SelectColor(StrokeColor.Red))
+        viewModel.onAction(ColoringAction.TapCanvas(Point(500f, 380f))) // Flower center
+
+        val afterWrongTap = viewModel.uiState.value
+        assertTrue("Wrong color must not fill the region", afterWrongTap.fills.isEmpty())
+        assertEquals("flower_center", afterWrongTap.incorrectTapRegionId)
+        assertFalse(afterWrongTap.canUndo)
+
+        advanceUntilIdle()
+        assertEquals(null, viewModel.uiState.value.incorrectTapRegionId)
+    }
+
+    @Test
+    fun testPaintByNumber_correctColorFillsAndClearsRejectionFlag() = runTest {
+        val viewModel = ColoringViewModel("pbn_rainbow_flower", bookRepo)
+        val centerColor = StrokeColor(0xFF8D6E63)
+
+        viewModel.onAction(ColoringAction.SelectColor(centerColor))
+        viewModel.onAction(ColoringAction.TapCanvas(Point(500f, 380f))) // Flower center
+
+        val state = viewModel.uiState.value
+        assertEquals(centerColor.argb, state.fills["flower_center"]?.argb)
+        assertEquals(null, state.incorrectTapRegionId)
+        assertTrue(state.canUndo)
+    }
+
+    @Test
+    fun testPaintByNumber_colorPickerCannotAddCustomSwatches() = runTest {
+        val viewModel = ColoringViewModel("pbn_rainbow_flower", bookRepo)
+        val customColor = StrokeColor(0xFF00E5FF)
+        val originalPalette = viewModel.uiState.value.availableColors
+
+        viewModel.onAction(ColoringAction.SelectColor(customColor))
+
+        val state = viewModel.uiState.value
+        assertEquals(customColor.argb, state.selectedColor.argb)
+        assertEquals("Numbered palette must stay fixed", originalPalette, state.availableColors)
+    }
+
+    @Test
+    fun testPaintByNumber_cannotSwitchToMagicCrayon() = runTest {
+        val viewModel = ColoringViewModel("pbn_rainbow_flower", bookRepo)
+        viewModel.onAction(ColoringAction.SelectTool(ColoringTool.MAGIC_CRAYON))
+        assertEquals(ColoringTool.BUCKET, viewModel.uiState.value.selectedTool)
+    }
+
+    @Test
+    fun testDefaultMode_isNumberModeEvenForUnauthoredTemplatePage() = runTest {
+        val viewModel = ColoringViewModel("happy_puppy", bookRepo)
+        val state = viewModel.uiState.value
+
+        assertEquals(ColoringMode.NUMBER, state.coloringMode)
+        assertTrue("Every template page defaults to Number Mode", state.isPaintByNumber)
+        assertTrue(state.availableColors.isNotEmpty())
+        assertEquals(state.availableColors.firstOrNull()?.argb, state.selectedColor.argb)
+    }
+
+    @Test
+    fun testSwitchToFreeMode_restoresFreeColoringBehaviorOnOrdinaryPage() = runTest {
+        val viewModel = ColoringViewModel("happy_puppy", bookRepo)
+        viewModel.onAction(ColoringAction.SelectColoringMode(ColoringMode.FREE))
+
+        val afterSwitch = viewModel.uiState.value
+        assertEquals(ColoringMode.FREE, afterSwitch.coloringMode)
+        assertFalse(afterSwitch.isPaintByNumber)
+
+        viewModel.onAction(ColoringAction.SelectColor(StrokeColor.Yellow))
+        viewModel.onAction(ColoringAction.TapCanvas(Point(500f, 280f)))
+        assertEquals(StrokeColor.Yellow.argb, viewModel.uiState.value.fills["head"]?.argb)
+
+        viewModel.onAction(ColoringAction.SelectTool(ColoringTool.MAGIC_CRAYON))
+        assertEquals(ColoringTool.MAGIC_CRAYON, viewModel.uiState.value.selectedTool)
+    }
+
+    @Test
+    fun testNumberMode_rejectsWrongColorOnOrdinaryUnauthoredPage() = runTest {
+        val viewModel = ColoringViewModel("happy_puppy", bookRepo)
+        val page = viewModel.uiState.value.page!!
+        val headRegion = page.regions.first { it.id == "head" }
+        val correctColor = page.effectiveTargetColor(headRegion)
+        val wrongColor = StrokeColor(correctColor.argb xor 0x00FFFFFF)
+
+        viewModel.onAction(ColoringAction.SelectColor(wrongColor))
+        viewModel.onAction(ColoringAction.TapCanvas(Point(500f, 280f)))
+
+        val state = viewModel.uiState.value
+        assertTrue("Wrong color must not fill under the default Number Mode", state.fills.isEmpty())
+        assertEquals("head", state.incorrectTapRegionId)
+    }
+
+    @Test
+    fun testBlankCanvas_modeSelectionIgnored() = runTest {
+        val viewModel = ColoringViewModel(InMemoryColoringBookRepository.BLANK_CANVAS_ID, bookRepo)
+        viewModel.onAction(ColoringAction.SelectColoringMode(ColoringMode.NUMBER))
+        assertFalse(viewModel.uiState.value.isPaintByNumber)
     }
 
     @Test

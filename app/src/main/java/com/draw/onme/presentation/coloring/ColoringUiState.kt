@@ -1,6 +1,7 @@
 package com.draw.onme.presentation.coloring
 
 import com.draw.onme.domain.model.ClosedAreaFill
+import com.draw.onme.domain.model.ColoringMode
 import com.draw.onme.domain.model.ColoringPage
 import com.draw.onme.domain.model.ColoringTool
 import com.draw.onme.domain.model.Point
@@ -25,7 +26,9 @@ data class ColoringUiState(
     val availableStrokeWidths: List<Float> = listOf(8f, 16f, 26f, 40f),
     val canUndo: Boolean = false,
     val canRedo: Boolean = false,
-    val showClearDialog: Boolean = false
+    val showClearDialog: Boolean = false,
+    val incorrectTapRegionId: String? = null,
+    val coloringMode: ColoringMode = ColoringMode.NUMBER
 ) {
     /**
      * Percentage (0.0f..1.0f) of regions that have been colored.
@@ -47,6 +50,22 @@ data class ColoringUiState(
      */
     val supportsBucketFill: Boolean
         get() = page != null && page.regions.isNotEmpty()
+
+    /**
+     * True while actively in Number Mode on a template page: every swatch carries a number and
+     * only the matching numbered region accepts a fill. Every template page supports this mode;
+     * [coloringMode] is what actually toggles it on or off.
+     */
+    val isPaintByNumber: Boolean
+        get() = coloringMode == ColoringMode.NUMBER && supportsBucketFill
+
+    /**
+     * Maps each numbered palette color's ARGB value to its 1-based number, for rendering
+     * swatch badges and region number labels. Uses [ColoringPage.effectiveNumberedPalette] so
+     * it covers every template page, not just hand-authored ones.
+     */
+    val numberByColorArgb: Map<Long, Int>
+        get() = page?.effectiveNumberedPalette.orEmpty().withIndex().associate { (index, color) -> color.argb to index + 1 }
 
     companion object {
         /**
@@ -91,6 +110,7 @@ sealed interface ColoringAction {
     data object CancelStroke : ColoringAction
     data class SelectTool(val tool: ColoringTool) : ColoringAction
     data class SelectColor(val color: StrokeColor) : ColoringAction
+    data class SelectColoringMode(val mode: ColoringMode) : ColoringAction
     data class SetStrokeWidth(val width: Float) : ColoringAction
     data object Undo : ColoringAction
     data object Redo : ColoringAction

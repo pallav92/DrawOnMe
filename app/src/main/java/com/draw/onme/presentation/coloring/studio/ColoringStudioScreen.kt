@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -41,6 +42,7 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -116,7 +118,7 @@ fun ColoringStudioScreen(
         val height = constraints.maxHeight.toFloat()
         val isLandscape = width > height
 
-        val scale = if (isLandscape) height * 0.76f else minOf(width, height) * 0.92f
+        val scale = if (isLandscape) height * 0.84f else minOf(width, height) * 0.98f
         val offsetX = (width - scale) / 2f
         val offsetY = (height - scale) / 2f
         val targetZoom = if (scale > 0f) scale / CANONICAL_SIZE else 1.0f
@@ -157,6 +159,9 @@ fun ColoringStudioScreen(
                 .align(Alignment.TopStart)
                 .statusBarsPadding()
                 .padding(start = 16.dp, top = 12.dp)
+                // Leave room for the Fridge pill on the right so a long page title (plus its
+                // "Done" badge) truncates instead of growing underneath/into it.
+                .widthIn(max = maxWidth - 152.dp)
         ) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
@@ -177,7 +182,10 @@ fun ColoringStudioScreen(
                     text = page?.let { "${it.iconEmoji} ${it.title}" } ?: "Coloring Studio",
                     style = MaterialTheme.typography.titleMedium.copy(
                         fontWeight = FontWeight.Bold
-                    )
+                    ),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f, fill = false)
                 )
                 if (uiState.isAllRegionsFilled) {
                     Spacer(modifier = Modifier.width(8.dp))
