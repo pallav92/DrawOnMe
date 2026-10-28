@@ -103,7 +103,7 @@ internal val VehicleColoringPages: List<ColoringPage> = listOf(
     )),
 
     // 5. YELLOW SCHOOL BUS
-    createPage("vehicle_school_bus", "Yellow School Bus", CATEGORY_VEHICLES, "🚌", "Easy", listOf(
+    createPage("vehicle_school_bus", "School Bus", CATEGORY_VEHICLES, "🚌", "Easy", listOf(
         ColoringRegion("road", "School Crossing", rectPoints(0.04f, 0.80f, 0.96f, 0.90f)),
         ColoringRegion("bus_body", "Yellow Body Shell", rectPoints(0.10f, 0.36f, 0.88f, 0.72f)),
         ColoringRegion("hood", "Forward Engine Hood", rectPoints(0.74f, 0.52f, 0.90f, 0.72f)),
