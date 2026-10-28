@@ -8,12 +8,15 @@ package com.draw.onme.domain.model
  * @property label Friendly descriptive label (e.g. "Left Ear", "Roof").
  * @property boundaryPoints Ordered normalized coordinates forming the closed perimeter.
  * @property defaultColor Optional initial placeholder color.
+ * @property targetColor The single correct color for this region in a Paint by Number page.
+ * When every region on a page defines one, the page becomes numbered (see [ColoringPage.isPaintByNumber]).
  */
 data class ColoringRegion(
     val id: String,
     val label: String,
     val boundaryPoints: List<Point>,
-    val defaultColor: StrokeColor? = null
+    val defaultColor: StrokeColor? = null,
+    val targetColor: StrokeColor? = null
 )
 
 /**
@@ -50,7 +53,47 @@ data class ColoringPage(
     val difficulty: String,
     val regions: List<ColoringRegion>,
     val outlines: List<ColoringOutline>
-)
+) {
+    /**
+     * True when every region declares a hand-authored [ColoringRegion.targetColor].
+     * Most pages rely on [effectiveTargetColor]'s heuristic fallback instead; this only tracks
+     * pages whose numbers were deliberately chosen region by region.
+     */
+    val isPaintByNumber: Boolean
+        get() = regions.isNotEmpty() && regions.all { it.targetColor != null }
+
+    /**
+     * Distinct hand-authored target colors in first-appearance order. Prefer [effectiveNumberedPalette]
+     * for anything shown to the user, since most pages don't set [ColoringRegion.targetColor].
+     */
+    val numberedPalette: List<StrokeColor>
+        get() = regions.mapNotNull { it.targetColor }.distinctBy { it.argb }
+
+    /**
+     * The color [region] should be filled with in Number Mode: its hand-authored [ColoringRegion.targetColor]
+     * when set, otherwise a deterministic heuristic guess (see [RegionColorHeuristics]) so every
+     * template page supports Number Mode, not just hand-authored ones.
+     */
+    fun effectiveTargetColor(region: ColoringRegion): StrokeColor =
+        region.targetColor ?: RegionColorHeuristics.colorMapFor(this)[region.id] ?: StrokeColor.Black
+
+    /**
+     * The full numbered palette used in Number Mode: every region's [effectiveTargetColor],
+     * deduplicated in first-appearance order and numbered 1-based by index here.
+     */
+    val effectiveNumberedPalette: List<StrokeColor>
+        get() = regions.map { effectiveTargetColor(it) }.distinctBy { it.argb }
+}
+
+/**
+ * Coloring mode for a template page: numbered (strict Paint by Number matching) or free
+ * (pick any color, draw with crayon). Every template page supports both; the studio opens
+ * in [NUMBER] by default and lets the user switch to [FREE].
+ */
+enum class ColoringMode {
+    NUMBER,
+    FREE
+}
 
 /**
  * Tools available in the Coloring Studio.
