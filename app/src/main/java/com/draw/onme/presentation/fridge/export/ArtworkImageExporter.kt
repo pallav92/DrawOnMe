@@ -42,6 +42,39 @@ object ArtworkImageExporter {
     const val DEFAULT_BITMAP_WIDTH = 1200
     const val FOOTER_HEIGHT = 160f
     const val PADDING_PERCENTAGE = 0.08f
+    const val PLAY_STORE_BASE_URL = "https://play.google.com/store/apps/details?id="
+    const val DEFAULT_PACKAGE_NAME = "com.draw.onme"
+
+    /**
+     * Constructs the canonical Google Play Store URL for the application given its [packageName].
+     */
+    fun getPlayStoreUrl(packageName: String = DEFAULT_PACKAGE_NAME): String {
+        val targetPackage = packageName.trim().ifBlank { DEFAULT_PACKAGE_NAME }
+        return "$PLAY_STORE_BASE_URL$targetPackage"
+    }
+
+    /**
+     * Builds the share caption message including artwork context and a Google Play Store download link
+     * so recipients can download DrawOnMe and view or create their own drawings.
+     *
+     * @param packageName The application package name used to format the Play Store link.
+     * @param artworkTitle Optional title of the shared artwork.
+     */
+    fun buildShareMessage(packageName: String = DEFAULT_PACKAGE_NAME, artworkTitle: String? = null): String {
+        val playStoreUrl = getPlayStoreUrl(packageName)
+        val trimmedTitle = artworkTitle?.trim()
+        val hasMeaningfulTitle = !trimmedTitle.isNullOrBlank() &&
+            !trimmedTitle.equals("Artwork", ignoreCase = true) &&
+            !trimmedTitle.equals("Untitled", ignoreCase = true)
+
+        val intro = if (hasMeaningfulTitle) {
+            "Look what was drawn with DrawOnMe: \"$trimmedTitle\"! 🎨"
+        } else {
+            "Look what was drawn with DrawOnMe! 🎨"
+        }
+
+        return "$intro\n\nDownload DrawOnMe on Google Play:\n$playStoreUrl"
+    }
 
     /**
      * Calculates the bounding box of all visible (non-eraser) strokes in [strokes].
@@ -268,16 +301,21 @@ object ArtworkImageExporter {
 
     /**
      * Prepares and launches the Android System Share Sheet to share [artwork] as a PNG image
-     * to any installed social media, messaging, or cloud application.
+     * to any installed social media, messaging, or cloud application, including a link to
+     * DrawOnMe on the Google Play Store.
      */
     suspend fun shareArtwork(context: Context, artwork: SavedArtwork) {
         val contentUri = saveToCache(context, artwork)
+        val shareText = buildShareMessage(
+            packageName = context.packageName,
+            artworkTitle = artwork.title
+        )
 
         val shareIntent = Intent(Intent.ACTION_SEND).apply {
             type = "image/png"
             putExtra(Intent.EXTRA_STREAM, contentUri)
             putExtra(Intent.EXTRA_SUBJECT, artwork.title)
-            putExtra(Intent.EXTRA_TEXT, "Look what was drawn with DrawOnMe! 🎨")
+            putExtra(Intent.EXTRA_TEXT, shareText)
             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
         }
 

@@ -86,5 +86,49 @@ class ArtworkImageExporterTest {
     fun constants_haveExpectedValues() {
         assertEquals(1200, ArtworkImageExporter.DEFAULT_BITMAP_WIDTH)
         assertEquals(160f, ArtworkImageExporter.FOOTER_HEIGHT, 0.001f)
+        assertEquals("https://play.google.com/store/apps/details?id=", ArtworkImageExporter.PLAY_STORE_BASE_URL)
+        assertEquals("com.draw.onme", ArtworkImageExporter.DEFAULT_PACKAGE_NAME)
+    }
+
+    @Test
+    fun getPlayStoreUrl_constructsExpectedUrlForPackage() {
+        val url = ArtworkImageExporter.getPlayStoreUrl("com.draw.onme")
+        assertEquals("https://play.google.com/store/apps/details?id=com.draw.onme", url)
+    }
+
+    @Test
+    fun getPlayStoreUrl_handlesBlankPackageNameWithDefaultFallback() {
+        val url = ArtworkImageExporter.getPlayStoreUrl("   ")
+        assertEquals("https://play.google.com/store/apps/details?id=com.draw.onme", url)
+    }
+
+    @Test
+    fun buildShareMessage_includesArtworkTitleAndPlayStoreLink() {
+        val message = ArtworkImageExporter.buildShareMessage(
+            packageName = "com.draw.onme",
+            artworkTitle = "Friendly Dragon"
+        )
+        assertTrue(message.contains("Friendly Dragon"))
+        assertTrue(message.contains("https://play.google.com/store/apps/details?id=com.draw.onme"))
+        assertEquals(
+            "Look what was drawn with DrawOnMe: \"Friendly Dragon\"! 🎨\n\nDownload DrawOnMe on Google Play:\nhttps://play.google.com/store/apps/details?id=com.draw.onme",
+            message
+        )
+    }
+
+    @Test
+    fun buildShareMessage_formatsGracefullyWhenTitleIsBlankOrGeneric() {
+        val genericTitles = listOf(null, "", "   ", "Artwork", "artwork", "Untitled", "UNTITLED")
+        for (title in genericTitles) {
+            val message = ArtworkImageExporter.buildShareMessage(
+                packageName = "com.draw.onme",
+                artworkTitle = title
+            )
+            assertEquals(
+                "Look what was drawn with DrawOnMe! 🎨\n\nDownload DrawOnMe on Google Play:\nhttps://play.google.com/store/apps/details?id=com.draw.onme",
+                message
+            )
+            assertTrue("Message must contain Play Store link", message.contains("https://play.google.com/store/apps/details?id=com.draw.onme"))
+        }
     }
 }
